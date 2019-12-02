@@ -153,7 +153,7 @@ print("\(df.string(from: fecha))")
 
 
 ```swift
-let querySQL = @"SELECT * FROM alumnos WHERE fecha_nacimiento < ?"
+let querySQL = "SELECT * FROM alumnos WHERE fecha_nacimiento < ?"
 ```
 
 - Vincular parámetros por posición: `sqlite3_bind_XXX` donde XXX es el tipo de datos.
@@ -174,7 +174,7 @@ sqlite3_bind_int(statement, 1, Int32(hace18!.timeIntervalSince1970))
 
 
 ```swift
-let querySQL = @"SELECT * FROM alumnos WHERE fecha_nacimiento < :fecha";
+let querySQL = "SELECT * FROM alumnos WHERE fecha_nacimiento < :fecha";
 ```
 
 - No obstante el API C no nos permite instanciar el parámetro directamente por nombre. Primero debemos obtener su posición con la función `sqlite3_bind_parameter_index(sentencia,nombre)` y luego aplicar la ya conocida `sqlite3_bind_XXX()`. 
