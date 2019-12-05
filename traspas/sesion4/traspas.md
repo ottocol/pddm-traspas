@@ -1,5 +1,6 @@
+<!-- .slide: class="titulo" -->
 
-# Sesión 4: Modelos de datos en Core Data (I)
+# Sesión 4: Modelos de datos en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
 
@@ -36,24 +37,10 @@ Ya hemos visto que Xcode tiene un editor visual, vamos a verlo con más detalle
 
 ---
 
-## Todas las entidades son `NSManagedObject`
+## Entidades en código Swift
 
-En la sesión anterior, las notas estaban representadas en el código por `NSManagedObject`, y accedíamos a las propiedades con KVC
-
-```swift
-for objeto in resultados {
-    print(obj.value(forKey:"texto")!
-} 
-```
-
-Si en el modelo hay varias entidades, tratarlas todas como `NSManagedObject` hace el código algo confuso, además de que KVC es un poco tedioso.
-
----
-
-## Clases propias como entidades
-
-- Es mejor definir nuestras propias clases Swift: `Usuario`, `Mensaje`, `Conversacion`,... y usarlas como entidades
-- Xcode nos puede generar el esqueleto de la clase, junto con *getters* y *setters* para propiedades y relaciones.
+- Para cada entidad se puede generar (automática o manualmente) una clase Swift equivalente
+- En realidad todos los objetos persistentes heredan de la clase `NSManagedObject` y podríamos tratarlos como tal, pero el código resulta muy tedioso
 
 ---
 
@@ -77,36 +64,16 @@ Las operaciones más comunes sobre los objetos gestionados son crear, listar, ac
 
 ---
 
-## Creación de entidades y asignación de atributos
-
-Ya vimos en la sesión anterior cómo crear y guardar un objeto gestionado. Ahora podemos hacer lo mismo usando nuestras propias clases, sin KVC
-
-```swift
-if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
-   let miContexto = miDelegate.persistentContainer.viewContext
-   //La sintaxis de creación es mucho más simple que insertNewObject
-   let u = Usuario(context:miContexto)
-   //Si somos masoquistas, también lo podríamos hacer como antes:
-   //let u = NSEntityDescription.insertNewObject(forEntityName: "Usuario", into: miContexto) as! Usuario
-   //Al tener una clase propia, podemos usar las propiedades directamente, sin KVC
-   u.login = "Pepe"
-   u.password = "123456"
-   try! miContexto.save()
-}
-```
-
----
-
 ## ¡¡Cuidado!!
 
 Recordad que **lo siguiente NO es correcto**, como ya se ha dicho Core Data tiene que gestionar el ciclo de vida completo del objeto
 
 ```swift
-var usuario = Usuario()
+var usuario = Usuario()  //Core Data no se entera de que el objeto existe
 usuario.login = "Pepe"
 ```
 
-O creamos el objeto con `init(context:)` o con `insertNewObject` o lo obtenemos de los que ya existen con una *fetch request*
+O creamos el objeto con el inicializador de Core Data: en el ejemplo `Usuario(context:)`  o lo obtenemos de los que ya existen con una *fetch request*
 
 ---
 
@@ -141,7 +108,7 @@ m.usuario = u;
 print("Mensajes del usuario \(u.login)")
 //Aquí debería aparecer el mensaje "hola amigos" (y más si los hubiera) 
 for mensaje in u.mensajes {
-        print("\(mensaje.fecha) \(mensaje.texto)")
+    print("\(mensaje.fecha) \(mensaje.texto)")
 }
 ```
 
@@ -165,12 +132,11 @@ if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
 }
 ```
 
-
 ---
 
 ## Leer objetos
 
-Para obtener los objetos del almacenamiento persistente se usan *fetch requests*
+Ya hemos visto que las consultas en Core Data se llaman *fetch requests*
 
 ```swift
 //Creamos la fetch request y decimos que devuelve usuarios
@@ -182,7 +148,7 @@ for usuario in usuarios {
     print(usuario.login!)
 }
 ```
-
+Las veremos con más detalle en la siguiente sesión
 
 ---
 
@@ -199,6 +165,33 @@ for usuario in usuarios {
 }
 //AHORA es cuando se guardan las modificaciones de modo persistente
 try! miContexto.save() 
+```
+
+---
+
+En el editor del modelo se pueden especificar condiciones de validación, que varían según el tipo de dato:
+
+![](img/reglas_validacion.png)
+
+---
+
+**IMPORTANTE** en memoria puede haber atributos no válidos sin problema. La validación solo se hace al guardar el contexto
+
+```swift
+...
+let usuario = Usuario(context: miContexto)
+usuario.login = "pepe"
+//Tenemos una regla que dice que la longitud mínima del password es 6
+//Pero esta instrucción no fallaría
+usuario.password = "pepe"
+do {
+  //Al intentar guardar falla la validación y genera una excepción  
+  try miContexto.save()
+} catch let error as NSError {
+   if error.code==NSValidationStringTooShortError {
+       print("Campo demasiado corto")
+   }
+}
 ```
 
 
