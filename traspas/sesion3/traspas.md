@@ -53,10 +53,8 @@ Estrictamente hablando, **no es un ORM** ya que no soporta más que SQLite y ade
 
 ---
 
-![](img/diagrama_core_data.png)
+![](img/core_data_stack.png)
 
-Tomado del libro "Pro Core Data for iOS" (2nd ed.), Apress 2011, pág 30
-<!-- .element: style="font-size:0.5em" -->
 
 ---
 
@@ -85,19 +83,11 @@ Tomado del libro "Pro Core Data for iOS" (2nd ed.), Apress 2011, pág 30
 
 ---
 
-## El *stack* de Core Data (y 4)
-
-- `NSFetchRequest`. Al igual que en SQL podemos ejecutar consultas especificando las condiciones para los objetos a recuperar.
-
-
-
----
-
 ## Inicializar el *stack*
 
-Para trabajar con Core Data necesitamos inicializar todas estas clases. Si al crear un nuevo proyecto marcamos la casilla `Use Core Data`, Xcode insertará código que lo hará por nosotros
+Para trabajar con Core Data necesitamos inicializar todas estas clases. Si al crear un nuevo proyecto marcamos la casilla `Use Core Data`, Xcode insertará código que lo hace por nosotros
 
-A partir de iOS10 este código es muy sencillo, se include en el *delegate*:
+A partir de iOS10 el código es muy sencillo, se include en el *delegate*, y usa la clase `NSPersistentContainer`, que se ocupa "de los detalles" del *stack*:
 
 ```swift
 lazy var persistentContainer: NSPersistentContainer = {
@@ -115,7 +105,7 @@ lazy var persistentContainer: NSPersistentContainer = {
 
 ## Usar el *stack*
 
-Normalmente nos basta con acceder al contexto
+Para hacer cualquier operación con Core Data necesitamos el contexto de persistencia.
 
 ```swift
 if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
@@ -123,6 +113,8 @@ if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
     ...
 } 
 ```
+
+Tendréis que usar este código o similar **una y otra vez**
 
 ---
 
@@ -141,6 +133,8 @@ Se pueden crear por código pero típicamente se crean en un editor "gráfico"
 
 ![](img/editar_entidad.png)
 
+Por cada entidad, Xcode crea automáticamente una clase con el mismo nombre
+
 ---
 
 ## Puntos a tratar
@@ -154,38 +148,16 @@ Se pueden crear por código pero típicamente se crean en un editor "gráfico"
 
 ## Crear un objeto gestionado
 
-No podemos hacerlo con un inicializador, Core Data debe gestionar el ciclo de vida del objeto: desde que nace hasta que desaparece
+Tenemos que hacerlo con un inicializador especial al que le pasamos el contexto de persistencia. Core Data debe gestionar el ciclo de vida del objeto: desde que nace hasta que desaparece
 
 ```swift
 import CoreData
 
 if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
     let miContexto = miDelegate.persistentContainer.viewContext
-    let nuevaNota = NSEntityDescription.insertNewObject(forEntityName: "Nota", 
-                                                        into: miContexto)
+    let nuevaNota = Nota(context:miContexto) 
+                                                       
 }
-```
-
-`nuevaNota` es de la clase `NSManagedObject`, propia de Core Data
-
----
-
-## Rellenar los campos del objeto gestionado
-
-`NSManagedObject` es una clase "genérica", podemos acceder a las propiedades de nuestra entidad usando un mecanismo llamado KVC (Key-Value Coding)
-
-Modificar las propiedades:
-
-```swift
-nuevaNota.setValue("probando notas", forKey: "texto")
-nuevaNota.setValue(Date(), forKey: "fecha")
-```
-
-Obtener las propiedades
-
-```swift
-//ponemos el ! porque value(forKey:) devuelve un opcional
-nuevaNota.value(forKey: "texto")!
 ```
 
 ---
@@ -195,9 +167,15 @@ nuevaNota.value(forKey: "texto")!
 `save` sobre el contexto guarda todos los cambios en el grafo de objetos gestionados, de la memoria al almacenamiento persistente
 
 ```swift
-//miContexto es el contexto de Core Data, hay que obtenerlo antes
+//"miContexto" es el contexto de Core Data, hay que obtenerlo antes
 do {
-   try miContexto.save()
+   let nuevaNota = Nota(context:miContexto)
+   nuevaNota.texto = "¡Hola Core Data!"
+   nuevaNota.fecha = Date()
+   let otraNota = Nota(context:miContexto)
+   otraNota.texto = "Ya somos dos"
+   otraNota.fecha = Date()
+   try miContexto.save()  //Guarda AMBAS notas
 } catch {
    print("Error al guardar el contexto: \(error)")
 }
@@ -210,12 +188,12 @@ do {
 Se hace con *fetch requests*, el equivalente a las consultas de SQL. Ya veremos la sintaxis. El siguiente ejemplo simplemente obtiene todas las entidades de un tipo (como un `SELECT * FROM` sin `WHERE`)
 
 ```swift
-let request : NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(entityName:"Nota")
+let request : NSFetchRequest<Nota> = NSFetchRequest(entityName:"Nota")
 //"miContexto" es el contexto de Core Data 
-//FALTA el código que obtiene "miContexto", como se ha hecho en ejemplos anteriores
-if let notas = try? miContexto.fetch(request) as! [NSManagedObject] {
+//FALTA el código que obtiene "miContexto", como antes
+if let notas = try? miContexto.fetch(request) {
    for nota in notas {
-       print(nota.value(forKey: "texto")!)
+       print(nota.texto)
    }
 }
 ```
