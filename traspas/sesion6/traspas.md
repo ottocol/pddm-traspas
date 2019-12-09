@@ -1,6 +1,6 @@
-<!-- .slide: class="titulo" -->
+<!-- .slide: class="titulo" --> 
 
-# Sesión 6: Búsquedas en Core Data
+# Sesión 6: Tablas en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
 
@@ -8,241 +8,284 @@
 
 ## Puntos a tratar
 
-- **Predicados y *fetch requests***
-- Predicados como cadenas
-- *Fetch request templates*
-- Ordenación
+- ***Fetched results controller***
+- Mostrar los datos en la tabla
+- Actualizar automáticamente la tabla
+- Secciones de tabla
+
 
 ---
 
-## Fetch requests
+## ¿De dónde vienen los datos en una tabla?
 
-**Predicados**: condiciones para filtrar los resultados de una *fetch request*. Como el `WHERE` de SQL.
+- Típicamente de un `Array`. Con Core Data los sacamos con una *fetch request* para meterlos en el array
+- En el objeto que actúa como *datasource*:
 
 ```swift
-let miDelegate = UIApplication.shared.delegate as! AppDelegate 
-let miContexto = miDelegate.persistentContainer.viewContext
-let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
-let pred = NSPredicate(format: "texto CONTAINS 'iOS'")
-request.predicate = pred
-let resultados = try! miContexto.fetch(request)
-print("Hay \(resultados.count) resultados")
-for mensaje in resultados {
-    print(mensaje.texto!)
+override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    //recordar que el prototipo de celda tiene un "reuse identifier"
+    //que hay que asignar en el storyboard
+    let cell = tableView.dequeueReusableCell(withIdentifier: "miCelda", for: indexPath)
+    let mensaje = mensajes[indexPath.row]
+    cell.textLabel?.text = mensaje.texto!
+    return cell
 }
 ```
 
 ---
 
-## Formas de definir predicados
+## Problemas
 
-- **Como una cadena de formato** usando expresiones y operadores del lenguaje de consultas, mezclados con caracteres de formato (al estilo `printf`)
+- Si hay muchos datos es **ineficiente** tenerlos todos en memoria, sería mejor ir sacándolos según nos movamos por la tabla, pero no es tan trivial de implementar
+- si se actualiza algún dato en Core data o bien
+    + Hacemos otra vez la *request* y recargamos toda la tabla
+    + Manualmente lo añadimos al array
 
-- **Como un *template***: ídem a lo anterior pero podemos usar variables con nombre
 
-- **Por código**: hay un conjunto de clases que representan operadores, expresiones, etc. Componiendo dichas clases construimos un predicado
+---
+
+## `NSFetchedResultsController`
+
+- Sirve de **"puente"** entre Core Data y la vista de tabla
+- Mejora el rendimiento:
+  - Obtiene solo los datos necesarios, los que se están mostrando
+  - Puede guardar automáticamente los datos en una *cache* 
+- Puede **detectar los cambios en el contexto** para que podamos actualizar la tabla
+- Nos ayuda a crear **secciones** automáticamente 
+
+---
+
+## Un `NSFetchedResultsController` básico
+
+- Para inicializarlo necesitamos
+  + Asociarle una *fetch request* que obtenga los datos a mostrar. 
+  + La *request* debe estar **ordenada** (Usar `NSSortDescriptor`s)
+  
+```swift  
+let miDelegate = UIApplication.shared.delegate! as! AppDelegate
+let miContexto = miDelegate.persistentContainer.viewContext
+
+let consulta = NSFetchRequest<Mensaje>(entityName: "Mensaje")
+
+let sortDescriptors = [NSSortDescriptor(key:"fecha", ascending:false)]
+consulta.sortDescriptors = sortDescriptors
+let frc = NSFetchedResultsController<Mensaje>(fetchRequest: consulta, managedObjectContext: miContexto, sectionNameKeyPath: nil, cacheName: "miCache")
+
+//ejecutamos el fetch
+try! frc.performFetch()
+```
+
+
+---
+
+Podemos guardar el *fetched results controller* en el `ViewController` de la pantalla con la tabla, sup. un `UITableViewController`.
+
+Cambiaríamos la variable `frc` de la traspa anterior por `self.frc`
+
+```swift
+import UIKit
+import CoreData
+
+class MiController : UITableViewController {
+  var frc : NSFetchedResultsController<Mensaje>! 
+  ...
+}
+```
+
+Así, este *controller* hace de todo (cosa que no debería :))
+- almacena el `frc`
+- es el *delegate* de la tabla
+- es el *datasource* de la tabla
+
 
 ---
 
 ## Puntos a tratar
 
-- Predicados y *fetch requests*
-- **Predicados como cadenas**
-- *Fetch request templates*
-- Ordenación
+- *Fetched results controller*
+- **Mostrar los datos en la tabla**
+- Actualizar automáticamente la tabla
+- Secciones de tabla
+
 
 ---
 
-## Predicados como cadenas
+## Para ver los datos en la tabla
 
-- **Ventaja:** fácil de escribir y entender
-- **Problema:** los errores de sintaxis se detectan *en tiempo de ejecución*
-
----
-
-## Operadores
-
-- **Operadores de comparación**: `=` (o `==`) `<`, `>`, `<=`, `!=` …
-- **Operadores lógicos**: `AND`, `OR`, `NOT` (o también al estilo C, `&&`, `||`, `!`). 
+- Recordemos que debe haber un objeto que actúe de *datasource* 
+- El *datasource* debe implementar
+  -  `numberOfSections(in:)` devuelve número de secciones
+  -  `tableView:numberOfRowsInSection:` devuelve número de filas en una sección
+  -  `tableView:cellForRowAtIndexPath:` devuelve una celda
 
 ---
 
-## Operadores (2)
+## Número de secciones
 
-- **Comparación de cadenas**: `BEGINSWITH`, `ENDSWITH`, `CONTAINS`, `LIKE` (como `CONTAINS` pero admite comodines `?` o `*`), `MATCHES` (comprueba si la cadena encaja con una expresión regular en [formato ICU](http://userguide.icu-project.org/strings/regexp))
-
-- Por defecto distinguen mayúsculas/minúsculas y símbolos diacríticos (a-à-á-ä)
-- Si después del operador hay un símbolo `[c]` indicamos que no queremos distinguir mayúsculas/minúsculas, y `[d]` ídem con los diacríticos
+Simplemente lo obtenemos del *fetched results controller*
 
 ```swift
-localidad CONTAINS[c] 'san'
+override func numberOfSections(in tableView: UITableView) -> Int {
+    return self.frc.sections!.count
+}
 ```
 
 ---
 
-## Argumentos y caracteres de formato
+## Número de filas en la sección actual:
 
-- Muy similares a los que se usan en C en el `printf`: `%i` es un entero, `%f` un real, `%@` es un objeto (este no existe en C)
-
-```swift
-let buscado = "iOS"
-NSPredicate(format: "texto CONTAINS %@ AND fecha<%@", argumentArray: [buscado, Date()])
-```
-
-
----
-
-## Problema con propiedades dinámicas
-
-- Como hemos visto antes, las cadenas se ponen entre comillas (simples o dobles). El formateo lo tiene en cuenta, pero habrá un problema si ponemos el nombre de una propiedad
-
+Idem, lo tomamos del *fetched results controller*
 
 ```swift
-let atributo = "login";
-let subcadena = "pep";
-let pred = NSPredicate(format:"%@ CONTAINS[c] %@", argumentArray:[atributo, subcadena]);
-```
-
-generaría esto, que es incorrecto
-
-```bash
-"login" CONTAINS[c] "usu"
+override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    return self.frc.sections![section].numberOfObjects
+}
 ```
 
 ---
 
-## Especificar propiedades con `%K`
+## Obtener una celda, dada la fila
 
-
-- Solución: usar el carácter de formato `%K` (de *keypath*) para especificar propiedades, no inserta comillas
 
 ```swift
-let pred = NSPredicate(format:"%K CONTAINS[c] %@", argumentArray:[atributo, subcadena]);
+override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    //recordar que el prototipo de celda tiene un "reuse identifier"
+    //que hay que asignar en el storyboard
+    let cell = tableView.dequeueReusableCell(withIdentifier: "miCelda", for: indexPath)
+    
+    let mensaje = self.frc.object(at: indexPath)
+    cell.textLabel?.text = mensaje.texto!
+    return cell
+}
 ```
 
 ---
 
 ## Puntos a tratar
 
-- Predicados y *fetch requests*
-- Predicados como cadenas
-- ***Fetch request templates***
-- Ordenación
-
-
----
-
-
-## Fetch request templates
-
-
-- Son una especie de "consultas predefinidas" que podemos crear en el propio modelo de datos, con el editor visual
-
-![](img/fetch_request_template.png)
-
-- Podemos poner **variables**: nombres con `$`: `$login`, `$cadena_buscada`
+- *Fetched results controller*
+- Mostrar los datos en la tabla
+- **Actualizar automáticamente la tabla**
+- Secciones de tabla
 
 ---
 
+## Refrescar la tabla
 
-¡Cuidado con el editor visual! en modo asistente a veces pone más comillas de la cuenta
-
-![](img/fetch_template_asistente.png)
-
-oops!
-
-![](img/fetch_template_texto_oops.png)
-
----
-
-## Ejecutar una *fetch request template*
-
-
-![](img/fetch_template.png)
-
+- De momento igual que con el array: cada vez que creamos un nuevo objeto este no aparece en la tabla por sí solo, hay que llamar a `reloadData()` 
+- PERO: el *fetched results controller* está “suscrito” a los cambios que se producen en el contexto de persistencia
+- Para que nos avise a su vez de estos cambios, tenemos que convertirnos en su *delegate*. 
 
 ```swift
-let dictVars = ["cadena":"iOS"]
-if let queryTmpl = miModelo.fetchRequestFromTemplate(withName: "textoContiene", substitutionVariables: dictVars) {
-    let results = try! miContexto.fetch(queryTmpl) as! [Mensaje]
-    print("Hay \(results.count) resultados en la template")
-    for mensaje in results {
-        print(mensaje.texto!)
+self.frc.delegate = self;
+```
+
+---
+
+## Convertirse en el *delegate*
+
+1. Asignar valor a la propiedad `delegate` del *fetched results controller* (ya hecho)
+2. Declarar que la clase es conforme al protocolo `NSFetchedResultsControllerDelegate`
+
+```swift
+import UIKit
+import CoreData
+
+class MiController : UITableViewController, NSFetchedResultsControllerDelegate {
+ ...
+}
+```
+
+---
+
+## "Escuchar" los cambios
+
+Cuando se van a modificar los datos y cuando ya se han modificado el *fetched results controller* avisará a su *delegate* llamando a `controllerWillChangeContent` y `controllerDidChangeContent`. Aprovechamos para llamar a `beginUpdates()` y `endUpdates` de la tabla
+
+```swift
+func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+    self.tableView.beginUpdates()
+}
+
+func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+    self.tableView.endUpdates()
+}
+```
+
+Con esto, agrupamos todos los cambios en una sola animación
+
+---
+
+## Visualizar los cambios
+
+Cuando se ha modificado algún objeto del contexto bajo la supervisión del *fetched results controller* avisará a su delegate llamando a:
+
+```swift
+func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+    switch type {
+    case .insert:
+        self.tableView.insertRows(at: [newIndexPath!], with:.automatic )
+    case .update:
+        self.tableView.reloadRows(at: [indexPath!], with: .automatic)
+    case .delete:
+        self.tableView.deleteRows(at: [indexPath!], with: .automatic)
+    case .move:
+        self.tableView.deleteRows(at: [indexPath!], with: .automatic)
+        self.tableView.insertRows(at: [newIndexPath!], with:.automatic )
     }
 }
 ```
 
 ---
 
-## Predicados en relaciones
+## Modificación en las secciones
 
-- Podemos incluir no solo los atributos “simples”, sino también los que representan relaciones 
-- **Relaciones "a uno"**:  por ejemplo, buscar todos los mensajes enviados por usuarios cuyo login comience por `m` (usamos la relación `Mensaje`-> `Usuario`)
-
+El *fetched results controller* también avisa a su *delegate* cuando se modifican las secciones
 
 ```swift
-let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
-let pred = NSPredicate(format:"usuario.login BEGINSWITH[c] 'm'")
-request.predicate = pred
+func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange sectionInfo: NSFetchedResultsSectionInfo, atSectionIndex sectionIndex: Int, for type: NSFetchedResultsChangeType) {
+    switch(type) {
+    case .insert:
+        self.tableView.insertSections(IndexSet(integer:sectionIndex), with: .automatic)
+    case .delete:
+        self.tableView.deleteSections(IndexSet(integer:sectionIndex), with: .automatic)
+    default: break
+    }
+}
 ```
-
----
-
-## Predicados en relaciones (II)
-
-- **Relaciones "a muchos"**: algo más complicado, ya que buscamos en una colección. 
-- Operador `ANY` para verificar que algún valor de la colección cumple la condición. 
-- Por ejemplo buscar todos los usuarios que han participado en alguna conversación en la última hora:
-
-```swift
-let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
-let predicado = NSPredicate(format: "ANY conversaciones.comienzo>%@", argumentArray: [haceUnaHora])
-```
-
----
-
-Podemos usar *subqueries* para comprobar que *todas* las entidades "al otro lado" de una relación cumplen una condición
-
-```swift
-let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
-let pred = NSPredicate(format: "(SUBQUERY(conversaciones, $c, 
-                       $c.comienzo>%@).@count==0)", argumentArray:[haceUnaHora])
-
-```
-
----
-
-## Consejo: no abusar de las *fetch requests*
-
-
-- Core Data nos permite trabajar directamente con el grafo de objetos, **no es necesario ejecutar  *fetch request* constantemente**
-- Por ejemplo, si ya tenemos un usuario en memoria y queremos consultar sus conversaciones lo hacemos accediendo directamente a la propiedad `conversaciones`, no haciendo una *fetch request* 
-- Las *fetch request* siempre acceden a la BD y por tanto son mucho más lentas que trabajar con objetos que ya están en el contexto
-
 
 ---
 
 ## Puntos a tratar
 
-- Predicados y *fetch requests*
-- Predicados como cadenas
-- *Fetch request templates*
-- Predicados como objetos
-- **Ordenación**
+- *Fetched results controller*
+- Mostrar los datos en la tabla
+- Actualizar automáticamente la tabla
+- **Secciones de tabla**
 
 ---
 
-## Ordenación: `NSSortDescriptor`
+## Crear secciones automáticamente
 
+Con el atributo `sectionNameKeyPath` al inicializar el *fetched results controller*
 
 ```swift
-let credSort = NSSortDescriptor(key:"creditos", ascending:false)
-let loginSort = NSSortDescriptor(key:"login" ascending:true)
-miFetchRequest.sortDescriptors = [credSort, loginSort])
+self.frc = NSFetchedResultsController<Mensaje>(fetchRequest: consulta, managedObjectContext: miContexto, sectionNameKeyPath: "conversacion.titulo", cacheName: "miCache")
 ```
 
-- Por defecto, para ordenar valores se intenta llamar al método `compare:`, de la clase del atributo usado para ordenar, que implementan la mayoría de clases estándar como `String`, `Date`, ...
-- En clases propias se puede usar el inicializador de `NSSortDescriptor` `init(key:ascending:selector:`, donde decimos a qué método hay que llamar para saber si un objeto va antes que otro.
+---
+
+## "Pintar" los títulos de sección
+
+Recordemos que el sitio de donde se sacan los datos es el *datasource*, al que la tabla le pedirá no solo las celdas sino los títulos de sección
+
+tabla -> Datasource -> fetched results controller
+
+```swift
+override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    return self.frc.sections![section].name
+}
+```
 
 ---
 

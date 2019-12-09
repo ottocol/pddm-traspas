@@ -1,6 +1,6 @@
 <!-- .slide: class="titulo" -->
 
-# Sesión 5: Más sobre modelos de datos
+# Sesión 5: Búsquedas en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
 
@@ -8,212 +8,243 @@
 
 ## Puntos a tratar
 
-- **Tipos de datos genéricos. Valores *transformables***
-- Validación de atributos
-- Ciclo de vida de un objeto gestionado
-- Deshacer y rehacer operaciones
-
-
----
-
-## Tipos de datos para atributos
-
-
-Por defecto, un atributo solo puede tener tipo *date*, *string*, numérico entero (con diversos tamaños) o numérico real. Pero hay otros dos tipos adicionales: *binary data* (`NSData`) y **transformable**
+- **Predicados y *fetch requests***
+- Predicados como cadenas
+- *Fetch request templates*
+- Ordenación
 
 ---
 
-## Valores transformables
+## Fetch requests
 
-- **Se serializan** a binario para almacenarse en la BD. Para poder hacer esto, Core Data tiene que saber cómo serializarlos
-- Recordemos de la primera sesión que **en iOS hay un mecanismo estándar de serialización**, el *archiving*, o *coding*. Las clases "serializables" son conformes al protocolo `Codable` (en versiones anteriores de Swift, `NSCoding`)
-- Si la clase del atributo es conforme a `NSCoding`, el  proceso será automático
-
----
-
-## Ejemplo: atributo que sea un color
-
-Supongamos una entidad `Figura` con un atributo `color`. En iOS los colores de la interfaz se representan con `UIColor`, que afortunadamente es conforme a `NSCoding`
-
----
-
-## ¿Qué hay que hacer en Xcode?
-
-En el editor del modelo de datos, simplemente definir el tipo como `transformable` y el Custom class como `UIColor`
-
-![](img/transformable_paso_1.png)
-
-**En este caso particular**, la clase generada automáticamente por Xcode no tiene el `import UIKit` necesario para que compile, por lo que nos tocaría **usar la generación manual de código**
-
----
-
-- Tipos de datos genéricos. Valores *transformables*
-- **Validación de atributos**
-- Ciclo de vida de un objeto gestionado
-- Deshacer y rehacer operaciones
-
----
-
-En el editor del modelo se pueden especificar condiciones de validación, que varían según el tipo de dato:
-
-![](img/reglas_validacion.png)
-
----
-
-**IMPORTANTE** en memoria puede haber atributos no válidos sin problema. La validación solo se hace al guardar el contexto
+**Predicados**: condiciones para filtrar los resultados de una *fetch request*. Como el `WHERE` de SQL.
 
 ```swift
-...
-let usuario = Usuario(context: miContexto)
-usuario.login = "pepe"
-//Tenemos una regla que dice que la longitud mínima del password es 6
-//Pero esta instrucción no fallaría
-usuario.password = "pepe"
-do {
-  //Al intentar guardar falla la validación y genera una excepción  
-  try miContexto.save()
-} catch let error as NSError {
-   if error.code==NSValidationStringTooShortError {
-       print("Campo demasiado corto")
-   }
+let miDelegate = UIApplication.shared.delegate as! AppDelegate 
+let miContexto = miDelegate.persistentContainer.viewContext
+let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
+let pred = NSPredicate(format: "texto CONTAINS 'iOS'")
+request.predicate = pred
+let resultados = try! miContexto.fetch(request)
+print("Hay \(resultados.count) resultados")
+for mensaje in resultados {
+    print(mensaje.texto!)
 }
 ```
 
 ---
 
-## Validaciones propias 
+## Formas de definir predicados
 
-Si queremos validar algo que no está contemplado en el editor visual, debemos implementar un método `validate<nombre_del_atributo>` 
+- **Como una cadena de formato** usando expresiones y operadores del lenguaje de consultas, mezclados con caracteres de formato (al estilo `printf`)
 
+- **Como un *template***: ídem a lo anterior pero podemos usar variables con nombre
+
+- **Por código**: hay un conjunto de clases que representan operadores, expresiones, etc. Componiendo dichas clases construimos un predicado
+
+---
+
+## Puntos a tratar
+
+- Predicados y *fetch requests*
+- **Predicados como cadenas**
+- *Fetch request templates*
+- Ordenación
+
+---
+
+## Predicados como cadenas
+
+- **Ventaja:** fácil de escribir y entender
+- **Problema:** los errores de sintaxis se detectan *en tiempo de ejecución*
+
+---
+
+## Operadores
+
+- **Operadores de comparación**: `=` (o `==`) `<`, `>`, `<=`, `!=` …
+- **Operadores lógicos**: `AND`, `OR`, `NOT` (o también al estilo C, `&&`, `||`, `!`). 
+
+---
+
+## Operadores (2)
+
+- **Comparación de cadenas**: `BEGINSWITH`, `ENDSWITH`, `CONTAINS`, `LIKE` (como `CONTAINS` pero admite comodines `?` o `*`), `MATCHES` (comprueba si la cadena encaja con una expresión regular en [formato ICU](http://userguide.icu-project.org/strings/regexp))
+
+- Por defecto distinguen mayúsculas/minúsculas y símbolos diacríticos (a-à-á-ä)
+- Si después del operador hay un símbolo `[c]` indicamos que no queremos distinguir mayúsculas/minúsculas, y `[d]` ídem con los diacríticos
 
 ```swift
-//Ejemplo: comprobar que la fecha de un mensaje no está en el futuro
-public func validateFecha(value: AutoreleasingUnsafeMutablePointer<AnyObject?>) throws {
-    let fecha = value.memory as! Date
-    if (fecha.timeIntervalSinceDate(date:Date())>0) {
-        throw propertyValidationErrorForKey("fecha", localizedDescription: "la fecha no es válida")
-    }
-}
+localidad CONTAINS[c] 'san'
+```
+
+---
+
+## Argumentos y caracteres de formato
+
+- Muy similares a los que se usan en C en el `printf`: `%i` es un entero, `%f` un real, `%@` es un objeto (este no existe en C)
+
+```swift
+let buscado = "iOS"
+NSPredicate(format: "texto CONTAINS %@ AND fecha<%@", argumentArray: [buscado, Date()])
 ```
 
 
 ---
 
-- Tipos de datos genéricos. Valores *transformables*
-- Validación de atributos
-- **Ciclo de vida de un objeto gestionado**
-- Deshacer y rehacer operaciones
+## Problema con propiedades dinámicas
 
----
+- Como hemos visto antes, las cadenas se ponen entre comillas (simples o dobles). El formateo lo tiene en cuenta, pero habrá un problema si ponemos el nombre de una propiedad
 
-
-## Ciclo de vida de un objeto gestionado
-
-Podemos enterarnos de cuándo:
-
-- Se crea un objeto gestionado: útil para asignar valores por defecto
-- Se recupera de la base de datos: para calcular propiedades
-- Se guarda en el almacenamiento persistente
-- Se borra: útil para liberar memoria
-- Se modifican sus atributos: para actualizar la interfaz
-
-
----
-
-## Creación/Recuperación 
-
-
-cuando se crea por primera vez/recupera del almacenamiento persistente, se llama a sus métodos `awakeFromInsert` y `awakeFromFetch`, respectivamente
 
 ```swift
-//Ejemplo: asignar a un nuevo mensaje la fecha del sistema
-//Archivo Mensaje+Custom.swift
-import Foundation
-import CoreData
+let atributo = "login";
+let subcadena = "pep";
+let pred = NSPredicate(format:"%@ CONTAINS[c] %@", argumentArray:[atributo, subcadena]);
+```
 
-extension Mensaje {
-    override public func awakeFromInsert() {
-        self.fecha = Date() as NSDate
-    }
-}
+generaría esto, que es incorrecto
+
+```bash
+"login" CONTAINS[c] "usu"
 ```
 
 ---
 
-## Notificaciones para observar el ciclo de vida
+## Especificar propiedades con `%K`
 
-- Otra posibilidad para observar el ciclo de vida de los objetos gestionados es usar **notificaciones**.
 
-- Si un objeto se inserta, actualiza o borra, emite una notificación de tipo `NSManagedObjectContextObjectsDidChangeNotification`. Más sobre esto en [este tutorial](https://cocoacasts.com/how-to-observe-a-managed-object-context/)
-
----
-
-## Detectar cambios en los atributos
-
-- Ya vimos el mecanismo para observar cambios en propiedades de objetos: KVO (Key-Value Observing)
-- KVO implementa el patrón `observer`: un objeto concreto observa eventos de otro concreto
-- KVO es un poco (solo un poco) tedioso de usar en Swift, requiere:
-    + Que los objetos participantes hereden de `NSObject`
-    + Que la propiedad a observar esté marcada como `dynamic`
-- Ambas condiciones las cumplen automáticamente los `NSManagedObject`
-
----
-
-## Ejemplo de KVO
-
-supongamos un objeto gestionado `usuario`, con una propiedad `password` y queremos saber cuándo cambia
-
+- Solución: usar el carácter de formato `%K` (de *keypath*) para especificar propiedades, no inserta comillas
 
 ```swift
-//decimos que queremos observar al objeto gestionado, en este caso 
-//el observador somos nosotros mismos. No siempre tiene que ser así
-usuario.addObserver(self, forKeyPath:"password", options: .new, context:nil)
+let pred = NSPredicate(format:"%K CONTAINS[c] %@", argumentArray:[atributo, subcadena]);
 ```
 
+---
+
+## Puntos a tratar
+
+- Predicados y *fetch requests*
+- Predicados como cadenas
+- ***Fetch request templates***
+- Ordenación
+
+
+---
+
+
+## Fetch request templates
+
+
+- Son una especie de "consultas predefinidas" que podemos crear en el propio modelo de datos, con el editor visual
+
+![](img/fetch_request_template.png)
+
+- Podemos poner **variables**: nombres con `$`: `$login`, `$cadena_buscada`
+
+---
+
+
+¡Cuidado con el editor visual! en modo asistente a veces pone más comillas de la cuenta
+
+![](img/fetch_template_asistente.png)
+
+oops!
+
+![](img/fetch_template_texto_oops.png)
+
+---
+
+## Ejecutar una *fetch request template*
+
+
+![](img/fetch_template.png)
+
 
 ```swift
-//Este método debe estar implementado siempre en el observador
-override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-    if keyPath == "password" {
-        let nuevoPassword = change?[.newKey]
-        print("El nuevo password es \(nuevoPassword)")
+let dictVars = ["cadena":"iOS"]
+if let queryTmpl = miModelo.fetchRequestFromTemplate(withName: "textoContiene", substitutionVariables: dictVars) {
+    let results = try! miContexto.fetch(queryTmpl) as! [Mensaje]
+    print("Hay \(results.count) resultados en la template")
+    for mensaje in results {
+        print(mensaje.texto!)
     }
 }
 ```
 
 ---
 
-- Tipos de datos genéricos. Valores *transformables*
-- Validación de atributos
-- Ciclo de vida de un objeto gestionado
-- **Deshacer y rehacer operaciones**
+## Predicados en relaciones
 
----
+- Podemos incluir no solo los atributos “simples”, sino también los que representan relaciones 
+- **Relaciones "a uno"**:  por ejemplo, buscar todos los mensajes enviados por usuarios cuyo login comience por `m` (usamos la relación `Mensaje`-> `Usuario`)
 
-En el contexto de persistencia hay un **undo manager** que se encarga automáticamente de deshacer y rehacer operaciones. Por defecto no está instanciado, hay que hacerlo al inicializar el *stack* de Core Data:
 
 ```swift
-//En el AppDelegate, si estamos usando Core Data
- lazy var persistentContainer: NSPersistentContainer = {
-     ...
-     //Inicializar un undo manager, ya que por defecto era nil
-     container.viewContext.undoManager = UndoManager()
-     //Esto ya estaba
-     return container
-}
+let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
+let pred = NSPredicate(format:"usuario.login BEGINSWITH[c] 'm'")
+request.predicate = pred
 ```
 
 ---
 
-Deshacer una operación de Core Data es tan sencillo como 
+## Predicados en relaciones (II)
+
+- **Relaciones "a muchos"**: algo más complicado, ya que buscamos en una colección. 
+- Operador `ANY` para verificar que algún valor de la colección cumple la condición. 
+- Por ejemplo buscar todos los usuarios que han participado en alguna conversación en la última hora:
 
 ```swift
-//suponiendo que hayamos obtenido el contexto
-let miContexto = ...
-//deshacemos la última operación realizada
-miContexto.undoManager.undo()
+let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
+let predicado = NSPredicate(format: "ANY conversaciones.comienzo>%@", argumentArray: [haceUnaHora])
 ```
 
-Por defecto se deshacen todas las operaciones realizadas la última vez que  el sistema “cedió el control” a la aplicación y la app volvió a “pasarle el testigo” al sistema.
+---
 
-Llamando a `beginUndoGrouping` y `endUndoGrouping` podemos establecer manualmente qué deshace el último *undo*
+Podemos usar *subqueries* para comprobar que *todas* las entidades "al otro lado" de una relación cumplen una condición
+
+```swift
+let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
+let pred = NSPredicate(format: "(SUBQUERY(conversaciones, $c, 
+                       $c.comienzo>%@).@count==0)", argumentArray:[haceUnaHora])
+
+```
+
+---
+
+## Consejo: no abusar de las *fetch requests*
+
+
+- Core Data nos permite trabajar directamente con el grafo de objetos, **no es necesario ejecutar  *fetch request* constantemente**
+- Por ejemplo, si ya tenemos un usuario en memoria y queremos consultar sus conversaciones lo hacemos accediendo directamente a la propiedad `conversaciones`, no haciendo una *fetch request* 
+- Las *fetch request* **siempre acceden físicamente a la BD** y por tanto son mucho más lentas que trabajar con objetos que ya están en el contexto
+
+
+---
+
+## Puntos a tratar
+
+- Predicados y *fetch requests*
+- Predicados como cadenas
+- *Fetch request templates*
+- Predicados como objetos
+- **Ordenación**
+
+---
+
+## Ordenación: `NSSortDescriptor`
+
+
+```swift
+let credSort = NSSortDescriptor(key:"creditos", ascending:false)
+let loginSort = NSSortDescriptor(key:"login" ascending:true)
+miFetchRequest.sortDescriptors = [credSort, loginSort])
+```
+
+- Por defecto, para ordenar valores se intenta llamar al método `compare:`, de la clase del atributo usado para ordenar, que implementan la mayoría de clases estándar como `String`, `Date`, ...
+- En clases propias se puede usar el inicializador de `NSSortDescriptor` `init(key:ascending:selector:`, donde decimos a qué método hay que llamar para saber si un objeto va antes que otro.
+
+---
+
+
+# ¿Alguna pregunta?
