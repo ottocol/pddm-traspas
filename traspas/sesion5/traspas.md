@@ -70,7 +70,6 @@ for mensaje in resultados {
 ## Operadores (2)
 
 - **Comparación de cadenas**: `BEGINSWITH`, `ENDSWITH`, `CONTAINS`, `LIKE` (como `CONTAINS` pero admite comodines `?` o `*`), `MATCHES` (comprueba si la cadena encaja con una expresión regular en [formato ICU](http://userguide.icu-project.org/strings/regexp))
-
 - Por defecto distinguen mayúsculas/minúsculas y símbolos diacríticos (a-à-á-ä)
 - Si después del operador hay un símbolo `[c]` indicamos que no queremos distinguir mayúsculas/minúsculas, y `[d]` ídem con los diacríticos
 
@@ -246,5 +245,22 @@ miFetchRequest.sortDescriptors = [credSort, loginSort])
 
 ---
 
+## El `objectID`
+
+- Cada objeto gestionado tiene un identificador único accesible en la propiedad `objectID`
+- Para obtener un objeto sabiendo su id:
+```swift
+var error: NSError?
+if let object = managedObjectContext.existingObjectWithID(objectID, error: &error) {
+    //aquí habríamos obtenido el objeto
+}
+else {
+    println("Error \(error)")
+}
+```
+A diferencia de una *fetch request* si el objeto estaba en memoria lo obtiene de ella, sin tener que "bajar" a la BD
+
+
+---
 
 # ¿Alguna pregunta?
