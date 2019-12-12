@@ -75,7 +75,7 @@ let contexto = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType
 let contexto2 = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
 ```
 
-En realidad no va a hacer falta crear explícitamente los contextos, hay métodos auxiliares **más simples de usar** y por tanto los usaremos
+En realidad no va a hacer falta crear explícitamente los contextos, hay métodos auxiliares **más simples de usar**
 
 
 ---
@@ -106,40 +106,11 @@ miDelegate.persistentContainer.performBackgroundTask() {
     for nota in lista {
         //Aquí hacemos una operación costosa, como exportar cada nota a PDF
         //o subirlas a un servidor
+        ...
     }
 }
 ```
 
----
-
-## Múltiples contextos para *background* (II)
-
-
-- También podemos pedirle al *persistent container* explícitamente un nuevo contexto de *background*, es decir, asociado a un *thread/cola* secundario(a)
-
-```swift
-let miDelegate = UIApplication.shared.delegate as! AppDelegate
-let contextoBG = miDelegate.persistentContainer.newBackgroundContext()
-```
-
----
-
-## Múltiples contextos para *background* (III)
-
-
-Una vez creado el contexto de *background*, para ejecutar una operación en él se usa `perform` (asíncrono) o `performAndWait` (síncrono)
-
-```swift
-let miDelegate = UIApplication.shared.delegate as! AppDelegate
-let contextoBG = miDelegate.persistentContainer.newBackgroundContext()
-...
-contextoBG.perform() {
-   //Aquí vendría la operación costosa
-   ...
-}
-```
-
-Es decir, el `performBackgroundTask` de antes es como un `newBackgroundContext` seguido de un `perform`
 
 ---
 
@@ -156,42 +127,12 @@ Supongamos una *app* en la que tenemos una búsqueda/recuperación de datos muy 
 
 Importante: **los objetos gestionados no se deben compartir directamente entre contextos**. Cada objeto gestionado está asociado al contexto en que "nació"
 
-<!-- 
----
-
-## Pasar objetos entre contextos con el identificador
-
-- Cada objeto persistente tiene un identificador único (propiedad `objectID`).**El id es único también entre contextos**
-- Es sencillo recuperar un objeto a partir de su id: método `object(with:)`
-
-Solución: desde el hilo secundario le pasamos al principal un array con los `id` de los objetos, y los "re-materializamos" con `object` en el hilo principal
-
----
-
-```swift
-let resultados : [NSManagedObject]!
-let miDelegate = UIApplication.shared.delegate as! AppDelegate
-miDelegate.persistentContainer.performBackgroundTask() {
-  contextoBG in
-  let request = NSFetchRequest<Nota>()
-  let resultadosBG = try! contextoBG.fetch(request)
-  let ids = resultadosBG.map { $0.objectID }
-  miContexto.perform() {
-    self.resultados = ids.map {miContexto.object(with:$0)}
-    //ahora nos aseguraríamos de que se pintaran los resultados
-    ...
-  }
-}
-```
--->
-
-
 ---
 
 
 ## Pasar objetos entre contextos sincronizando
 
-- Recordemos que cuando un objeto persistente se guarda, emite una notificación
+- Cuando un objeto persistente se guarda, emite una notificación
 - Esta notificación se puede escuchar desde cualquier hilo
 - El método `mergeChanges` *refresca* un contexto actualizándolo con la información contenida en la notificación
 
@@ -231,7 +172,7 @@ nc.addObserver(forName: .NSManagedObjectContextDidSave,
 
 - Como ya hemos visto, normalmente el contexto de persistencia está conectado con el *persistent store coordinator*, y este "gestiona la BD".
 
-- Desde iOS5 se pueden crear contextos conectados a otros (hijos/padres). Cuando el hijo hace `save` se lo enviamos al padre, pero hasta que este no hace `save` el objeto no se hace persistente
+- Se pueden crear contextos conectados a otros (un contexto "hijo" de otro contexto "padre"). Cuando el hijo hace `save` en realidad se lo enviamos al padre, pero hasta que este no hace `save` el objeto no se hace persistente
 
 ---
 
