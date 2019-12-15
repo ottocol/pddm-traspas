@@ -1,15 +1,17 @@
 
 <!-- .slide: class="titulo" -->
-# Arquitecturas de aplicaciones iOS. **Parte I: MVC**
-## Persistencia en dispositivos móviles
+# Arquitecturas de aplicaciones iOS. **Parte I: Introducción. MVC**
+
 
 
 ---
 
 ## Puntos a tratar
 
-- **Arquitecturas de aplicaciones iOS**
-- Los problemas de MVC
+- **Arquitectura de aplicaciones iOS**
+- Problemas de MVC/posibles soluciones
+- Flujo de información en la app
+
 
 ---
 
@@ -21,22 +23,32 @@ Hasta ahora nos hemos preocupado por APIs y tecnologías, pero no demasiado por 
 
 Entre otras cosas...
 
-- Cada clase debe desempeñar un único papel <!-- .element: class="fragment" -->
-- Debe facilitar el testing <!-- .element: class="fragment" -->
-- No debe depender de un framework concreto <!-- .element: class="fragment" -->
-- Debe ser flexible por simplicidad pero no por demasiada abstracción <!-- .element: class="fragment" -->
-- Debe permitir seguir el flujo de datos con facilidad <!-- .element: class="fragment" -->
+- Cada clase debe desempeñar un único papel 
+- Debe facilitar el testing 
+- No debe depender de un framework concreto 
+- Debe ser flexible por simplicidad pero no por demasiada abstracción 
+- Debe permitir seguir el flujo de datos con facilidad 
 
 [Charla "Good iOS Application Architecture: MVVM vs. MVC vs. VIPER"](https://academy.realm.io/posts/krzysztof-zablocki-mDevCamp-ios-architecture-mvvm-mvc-viper/
-) <!-- .element: class="fragment caption" -->
+) <!-- .element: class="caption" -->
+
+
+---
+
+<!-- .slide: data-background-image="https://www.mycustomer.com/sites/default/files/styles/banner/public/warning_0_0_0_0_1_0_0.jpg" -->
+
+<span style="color:red; font-weight:bolder; font-size: 2em">A partir de aquí, todo es opinable</span>
 
 
 ---
 
 ## Puntos a tratar
 
-- Arquitecturas de aplicaciones iOS
-- **Los problemas de MVC**
+- Arquitectura de aplicaciones iOS
+- **Problemas de MVC/posibles soluciones**
+- Flujo de información en la app
+
+
 
 ---
 
@@ -46,13 +58,13 @@ Entre otras cosas...
 
 ---
 
-## Problema 1: Acoplamiento entre componentes
+## Problema: Acoplamiento entre componentes
 
 Por el propio diseño de iOS hay un acoplamiento vista/controlador
 
 ![](img/realidad_mvc.png)
 
-Este problema lo resuelven otras arquitecturas como MVVM/MVP
+Este problema lo resuelven otras arquitecturas como MVVM
 
 ---
 
@@ -81,14 +93,14 @@ class Modelo  {
 
 Recordad que en iOS hay dos mecanismos básicos que podemos usar para independizar el modelo del controlador:
 
-- KVO
 - Notificaciones
+- KVO
 
 El controlador siempre debe **escuchar al modelo**, no el modelo enviarle específicamente los datos al controlador
 
 ---
 
-## Problema 2: Massive View Controllers
+## Problema: Massive View Controllers
 
 
 <div class="column half">
@@ -115,12 +127,6 @@ Ejemplo de aplicación en la que "todo lo hace el view controller"
 
 ## Vamos a refactorizar el *view controller* para que no realice tantas tareas distintas
 
-
----
-
-<!-- .slide: data-background-image="https://www.mycustomer.com/sites/default/files/styles/banner/public/warning_0_0_0_0_1_0_0.jpg" -->
-
-<span style="color:red; font-weight:bolder; font-size: 2em">A partir de aquí, todo es opinable</span>
 
 ---
 
@@ -152,7 +158,8 @@ Otro principio similar: separación de intereses (*separation of concerns*)
 *  Encapsular la persistencia en un **repositorio** (también llamado DAO, *data mapper*, ...)
     * Además de separar responsabilidades, facilita el cambio en el mecanismo de persistencia (¿preferencias?, ¿SQLite?)
 * Separar la responsabilidad de actuar como **datasource**
-* Extraer el código que **configura las celdas**
+* Separar la responsabilidad de actuar como **delegate**                
+* Extraer el código que **configura las celdas** (encapsular la vista)
 
 ---
 
@@ -264,10 +271,114 @@ Para más detalles, podéis ver la charla: "*Refactoring tne Mega Controller*", 
 
 ---
 
-## Problema 3: MVC no es una arquitectura para toda la *app*
+## Puntos a tratar
 
-- MVC cubre "una pantalla", pero ¿cómo cambiamos de una pantalla a otra?
-- Arquitecturas como VIPER intentan solucionar este problema (y otros como el de la dependencia de *frameworks* concretos)
+- Arquitectura de aplicaciones iOS
+- Problemas de MVC/posibles soluciones
+- **Flujo de información en la app**
+
+
+
+---
+
+## Problema: MVC no es una arquitectura para toda la *app*
+
+MVC cubre "una pantalla", pero ¿qué pasa al cambiar de una pantalla a otra?
+- Ya hemos visto que necesitamos pasar datos de un `ViewController` a otro
+- Además necesitamos saber a qué pantallas se puede ir desde una dada, y cómo 
+
+---
+
+## Pasar datos entre controllers
+
++ *Singleton*
++ Inyección de dependencias
+
+---
+
+## Singleton
+
+La versión "civilizada" de la variable global. Omnipresente en iOS (*app delegate*, *notification center*, cola principal, preferencias de usuario,...) 
+
+```swift
+//Definición
+class StateSingleton {
+    var pedidoActual:Pedido!
+    
+    private init(){
+    }
+    
+    static let shared = StateSingleton()
+}
+```
+```swift
+//Uso
+StateSingleton.shared.pedidoActual
+```
+
+---
+
+## Inyección de dependencias
+
+La hemos usado varias veces
+
+```swift
+//En el view controller 1
+override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+    if segue.identifier=="siguiente" {
+        if let vc2 = segue.destination as? ViewController2 {
+            vc2.mensaje = "Bienvenidos a la pantalla 2"
+        }
+    }
+ }
+```
+```swift
+//En el view controller 2
+class ViewController2 : UIViewController {
+    var mensaje : String!
+    ...
+}
+```
+Problema: no tenemos ninguna ayuda del compilador para asegurarnos de que estamos pasando los datos 
+
+---
+
+Desde iOS13 *segue action*, un método que iOS llama durante la transición de un *segue* para que podamos crear nosotros el view controller, en vez de crearlo iOS. Nos permite usar un *inicializador a medida*, **cuyo uso correcto chequea el compilador**
+
+```swift
+@IBSegueAction
+private func showPreview(coder: NSCoder)
+    -> ViewController2? {
+    return ViewController2(coder: coder, mensaje: "hola")
+}
+```
+
+```swift
+import UIKit
+class ViewController2: UIViewController {
+  let mensaje: Mensaje
+
+  init?(coder: NSCoder, mensaje: texto) {
+    self.mensaje = texto
+    super.init(coder: coder)
+  }
+  ...
+}
+```
+
+Más detalles por ejemplo en [Better Storyboards  with Xcode 11](https://useyourloaf.com/blog/better-storyboards-with-xcode-11/)
+
+---
+
+## Flujo de navegación
+
+¿Cómo especificar el flujo de navegación entre pantallas de forma que sea fácil de entender, escalable y compatible con la gestión de versiones?
+
+- *Storyboards* 
+    - Problemas de escalabilidad. Mejor dividir el storyboard en fragmentos con *storyboard references* ([tutorial ejemplo](https://cocoacasts.com/organizing-storyboards-with-storyboard-references))
+    - Al ser XML generado automáticamente plantean [problemas con el control de versiones](https://martiancraft.com/blog/2018/02/handling-storyboard-merge-conflicts/)
+- Arquitecturas como VIPER intentan solucionar (entre otros) este problema
+
 
 
 ---
