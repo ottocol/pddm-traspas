@@ -397,6 +397,7 @@ let nombreRef = db.reference(withPath:"personas/jap2/nombre")
 nombreRef.setValue("John")
 //CUIDADO, sustituye el valor de "personas", con todo lo que hay por debajo
 let personasRef = db.reference(withPath:"personas")
+//el valor de "personas" pasa a ser un String
 personasRef.setValue("¡¡La que acabas de liar!!")
 ```
 
@@ -411,15 +412,7 @@ let mlmj15 = db.reference(withPath: "personas/mlmj15")
 mlmj15.setValue(["nombre":"María Luisa", "apellidos":"Marín Juárez"])
 ```
 
----
-
-Para **asignar un valor compuesto, basta con pasar un diccionario**. Por ejemplo, Podríamos cambiar los datos de "mlmj15" con:
-
-```swift
-let db = Database.database()
-let ref = db.reference(withPath:"personas/mlmj15")
-ref.setValue(["nombre":"Mari Loli", "apellidos":"Martínez Jaén"])
-```
+Como se ve, para **asignar un valor compuesto, basta con pasar un diccionario Swift** a `setValue`.
 
 ---
 
