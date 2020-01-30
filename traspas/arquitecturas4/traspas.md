@@ -337,4 +337,11 @@ struct App: View {
 
 ---
 
+## Más sobre SwiftUI
+
+- [100 days of SwiftUI](https://www.hackingwithswift.com/100/swiftui) muchos y buenos tutoriales orientados a proyectos para ir aprendiendo Swift "a lo largo de 100 días". Cada día se aprenden o repasan conceptos y se aplican a pequeños proyectos.
+- [Apple SwiftUI tutorials](https://developer.apple.com/tutorials/swiftui/) Tutoriales oficiales de Apple
+
+
+---
 # ¿Alguna pregunta?
