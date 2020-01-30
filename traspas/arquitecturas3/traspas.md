@@ -47,9 +47,9 @@ No es tan esencial usar un *framework*, la implementación original de Redux en 
 - El estado es un `struct` conforme al protocolo `StateType`
 
 ```swift
-//supongamos una app de tareas pendientes
+//supongamos una app con la lists de la compra
 struct AppState : StateType {
-   var tareas = [Tarea]()
+   var items = [Item]()
    var usuario : Usuario!
 }
 ```
@@ -72,17 +72,17 @@ let store = Store<AppState>(reducer: appReducer, state: nil)
 
 ---
 
-## Una acción en ReSwift
+## Acciones en ReSwift
 
 ```swift
 import ReSwift
 
-struct AccionAñadir : Action {
-    let cantidad : Int
+struct AddItem : Action {
+    let nuevo : Item
 }
 
-struct AccionQuitar : Action {
-    let cantidad : Int
+struct DeleteItem : Action {
+    let id : Int
 }
 ```
 
@@ -107,18 +107,17 @@ Un *reducer* no es más que una función con la signatura
 En código un *reducer* es básicamente un *switch* que en función de la acción ejecuta el cambio en el estado
 
 ```swift
-unc authenticationReducer(action: Action, state: AuthenticationState?) -> AuthenticationState {
-    var state = state ?? initialAuthenticationState()
+func appReducer(action: Action, state: AppState?) -> AppState {
+    //si no hay estado, lo inicializamos
+    var state = state ?? AppState()
 
     switch action {
-    case _ as ReSwiftInit:
-        break
-    case let action as SetOAuthURL:
-        state.oAuthURL = action.oAuthUrl
-    case let action as UpdateLoggedInState:
-        state.loggedInState = action.loggedInState
-    default:
-        break
+        case let action as AddItem:
+            state.items.append(action.nuevo)
+        case let action as DeleteItem:
+            ...
+        default:
+            break
     }
 
     return state
@@ -150,7 +149,7 @@ Típicamente el `ViewController`. El nuevo estado es recibido y mostrado en la v
 
 ---
 
-## Suscripción al Store en código
+## Suscripción al Store en ReSwift
 
 - El suscriptor debe ser conforme al protocolo `StoreSubscriber`
 - El store avisará llamando al método `newState`
@@ -164,6 +163,7 @@ Típicamente el `ViewController`. El nuevo estado es recibido y mostrado en la v
 - *Thunk*: es una acción que en lugar de ser datos es código Swift. Esta acción puede acceder al estado actual y despachar acciones síncronas 
 
 - En `ReSwift`, extensión [ReSwift-Thunk](https://github.com/ReSwift/ReSwift-Thunk) (misma idea que [redux-thunk](https://github.com/reduxjs/redux-thunk), pero en Swift en lugar de JS)
+
 
 ---
 
