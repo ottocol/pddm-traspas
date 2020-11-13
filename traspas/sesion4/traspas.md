@@ -1,6 +1,6 @@
 <!-- .slide: class="titulo" -->
 
-# Sesión 4: Modelos de datos en Core Data
+# Modelos de datos en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
 

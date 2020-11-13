@@ -1,5 +1,5 @@
 <!-- .slide: class="titulo" -->
-# Sesión 3: ¡Hola Core Data!
+# ¡Hola Core Data!
 ## Persistencia en dispositivos móviles, iOS
 
 
@@ -54,32 +54,6 @@ Estrictamente hablando, **no es un ORM** ya que no soporta más que SQLite y ade
 ---
 
 ![](img/core_data_stack.png)
-
-
----
-
-## El *stack* de Core Data (1)
-
-- `NSPersistentStore`: se ocupa de gestionar el almacenamiento persistente. Podemos crear nuestros propios almacenes de datos creando subclases de ella.
-- `NSPersistentStoreCoordinator`: el núcleo de Core Data. Responsable de gestionar la persistencia (interactúa con el `NSPersistentStore`). 
-  + Nuestro código no va a interactuar apenas con esta clase, salvo en su inicialización.
-
----
-
-## El *stack* de Core Data (2)
-
-- `NSManagedObjectModel`. similar a un modelo E-R en una BD relacional, define las “clases” del dominio, sus atributos y las relaciones entre clases. 
-- En Xcode un modelo de datos se representa con un archivo `.xcdatamodeld` (hay un editor visual). El `NSManagedObjectModel` es la versión compilada y binaria de este archivo.
-
-
----
-
-## El *stack* de Core Data (3)
-
-- `NSManagedObjectContext`  es el “contexto de persistencia” (un grafo de objetos, relacionados entre sí, y cuyo ciclo de vida está gestionado - *managed* - por Core Data)
-- `NSManagedObject`: los objetos gestionados
-  - Podemos usar esta clase o crear descendientes. Así podemos usar nuestras propias clases como objetos persistentes.
-
 
 ---
 
