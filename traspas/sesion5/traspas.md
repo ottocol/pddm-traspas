@@ -1,8 +1,14 @@
 <!-- .slide: class="titulo" -->
 
-# Sesión 5: Búsquedas en Core Data
+# Búsquedas en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
+
+---
+
+## Modelo de datos para los ejemplos
+
+![](img/modelo_datos.png)
 
 ---
 
@@ -36,10 +42,9 @@ for mensaje in resultados {
 
 ## Formas de definir predicados
 
+
 - **Como una cadena de formato** usando expresiones y operadores del lenguaje de consultas, mezclados con caracteres de formato (al estilo `printf`)
-
 - **Como un *template***: ídem a lo anterior pero podemos usar variables con nombre
-
 - **Por código**: hay un conjunto de clases que representan operadores, expresiones, etc. Componiendo dichas clases construimos un predicado
 
 ---
@@ -121,6 +126,73 @@ let pred = NSPredicate(format:"%K CONTAINS[c] %@", argumentArray:[atributo, subc
 
 ---
 
+## Predicados en relaciones
+
+- Podemos incluir no solo los atributos “simples”, sino también los que representan relaciones 
+- **Relaciones "a uno"**:  por ejemplo, buscar todos los mensajes enviados por usuarios cuyo login comience por `m` (usamos la relación `Mensaje`-> `Usuario`)
+
+
+```swift
+let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
+let pred = NSPredicate(format:"usuario.login BEGINSWITH[c] 'm'")
+request.predicate = pred
+```
+
+---
+
+## Predicados en relaciones (II)
+
+- **Relaciones "a muchos"**: algo más complicado, ya que buscamos en una colección. 
+- Operador `ANY` para verificar que algún valor de la colección cumple la condición. 
+- Por ejemplo buscar todos los usuarios que han participado en alguna conversación en la última hora:
+
+```swift
+let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
+let predicado = NSPredicate(format: "ANY conversaciones.comienzo>%@", argumentArray: [haceUnaHora])
+```
+
+---
+
+Podemos usar *subqueries* para comprobar que *todas* las entidades "al otro lado" de una relación cumplen una condición
+
+```swift
+let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
+let pred = NSPredicate(format: "(SUBQUERY(conversaciones, $c, 
+                       $c.comienzo>%@).@count==0)", argumentArray:[haceUnaHora])
+
+```
+
+---
+
+## Consejo: no abusar de las *fetch requests*
+
+
+- Core Data nos permite trabajar directamente con el grafo de objetos, **no es necesario ejecutar  *fetch request* constantemente**
+- Por ejemplo, si ya tenemos un usuario en memoria y queremos consultar sus conversaciones lo hacemos accediendo directamente a la propiedad `conversaciones`, no haciendo una *fetch request* 
+- Las *fetch request* **siempre acceden físicamente a la BD** y por tanto son mucho más lentas que trabajar con objetos que ya están en el contexto
+
+---
+
+
+## El `objectID`
+
+- Cada objeto gestionado tiene un identificador único accesible en la propiedad `objectID`
+- Para obtener un objeto sabiendo su id:
+```swift
+var error: NSError?
+if let object = managedObjectContext.existingObjectWithID(objectID, error: &error) {
+    //aquí habríamos obtenido el objeto
+}
+else {
+    println("Error \(error)")
+}
+```
+A diferencia de una *fetch request* si el objeto estaba en memoria lo obtiene de ella, sin tener que "bajar" a la BD
+
+
+
+---
+
 ## Puntos a tratar
 
 - Predicados y *fetch requests*
@@ -171,53 +243,6 @@ if let queryTmpl = miModelo.fetchRequestFromTemplate(withName: "textoContiene", 
 }
 ```
 
----
-
-## Predicados en relaciones
-
-- Podemos incluir no solo los atributos “simples”, sino también los que representan relaciones 
-- **Relaciones "a uno"**:  por ejemplo, buscar todos los mensajes enviados por usuarios cuyo login comience por `m` (usamos la relación `Mensaje`-> `Usuario`)
-
-
-```swift
-let request = NSFetchRequest<Mensaje>(entityName: "Mensaje")
-let pred = NSPredicate(format:"usuario.login BEGINSWITH[c] 'm'")
-request.predicate = pred
-```
-
----
-
-## Predicados en relaciones (II)
-
-- **Relaciones "a muchos"**: algo más complicado, ya que buscamos en una colección. 
-- Operador `ANY` para verificar que algún valor de la colección cumple la condición. 
-- Por ejemplo buscar todos los usuarios que han participado en alguna conversación en la última hora:
-
-```swift
-let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
-let predicado = NSPredicate(format: "ANY conversaciones.comienzo>%@", argumentArray: [haceUnaHora])
-```
-
----
-
-Podemos usar *subqueries* para comprobar que *todas* las entidades "al otro lado" de una relación cumplen una condición
-
-```swift
-let haceUnaHora  = Date(timeIntervalSinceNow: -60*60)
-let pred = NSPredicate(format: "(SUBQUERY(conversaciones, $c, 
-                       $c.comienzo>%@).@count==0)", argumentArray:[haceUnaHora])
-
-```
-
----
-
-## Consejo: no abusar de las *fetch requests*
-
-
-- Core Data nos permite trabajar directamente con el grafo de objetos, **no es necesario ejecutar  *fetch request* constantemente**
-- Por ejemplo, si ya tenemos un usuario en memoria y queremos consultar sus conversaciones lo hacemos accediendo directamente a la propiedad `conversaciones`, no haciendo una *fetch request* 
-- Las *fetch request* **siempre acceden físicamente a la BD** y por tanto son mucho más lentas que trabajar con objetos que ya están en el contexto
-
 
 ---
 
@@ -226,7 +251,6 @@ let pred = NSPredicate(format: "(SUBQUERY(conversaciones, $c,
 - Predicados y *fetch requests*
 - Predicados como cadenas
 - *Fetch request templates*
-- Predicados como objetos
 - **Ordenación**
 
 ---
@@ -241,24 +265,8 @@ miFetchRequest.sortDescriptors = [credSort, loginSort])
 ```
 
 - Por defecto, para ordenar valores se intenta llamar al método `compare:`, de la clase del atributo usado para ordenar, que implementan la mayoría de clases estándar como `String`, `Date`, ...
-- En clases propias se puede usar el inicializador de `NSSortDescriptor` `init(key:ascending:selector:`, donde decimos a qué método hay que llamar para saber si un objeto va antes que otro.
+- En clases propias se puede usar el inicializador de `NSSortDescriptor` `init(key:,ascending:,selector:)`, donde decimos a qué método hay que llamar para saber si un objeto va antes que otro.
 
----
-
-## El `objectID`
-
-- Cada objeto gestionado tiene un identificador único accesible en la propiedad `objectID`
-- Para obtener un objeto sabiendo su id:
-```swift
-var error: NSError?
-if let object = managedObjectContext.existingObjectWithID(objectID, error: &error) {
-    //aquí habríamos obtenido el objeto
-}
-else {
-    println("Error \(error)")
-}
-```
-A diferencia de una *fetch request* si el objeto estaba en memoria lo obtiene de ella, sin tener que "bajar" a la BD
 
 
 ---

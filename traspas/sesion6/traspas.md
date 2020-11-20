@@ -1,6 +1,6 @@
 <!-- .slide: class="titulo" --> 
 
-# Sesión 6: Tablas en Core Data
+# Tablas en Core Data
 ## Persistencia en dispositivos móviles, iOS
 
 
@@ -37,9 +37,7 @@ override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexP
 ## Problemas
 
 - Si hay muchos datos es **ineficiente** tenerlos todos en memoria, sería mejor ir sacándolos según nos movamos por la tabla, pero no es tan trivial de implementar
-- si se actualiza algún dato en Core data o bien
-    + Hacemos otra vez la *request* y recargamos toda la tabla
-    + Manualmente lo añadimos al array
+- Hay que **sincronizar manualmente** Core Data con el array
 
 
 ---
