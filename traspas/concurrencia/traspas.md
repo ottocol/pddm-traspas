@@ -10,7 +10,6 @@
 
 - Por qué contextos múltiples
 - Contextos para trabajos en *background*
-- Comunicación entre contextos
 - Contextos anidados
 
 ---
@@ -19,7 +18,6 @@
 
 - **Por qué contextos múltiples**
 - Contextos para trabajos en *background*
-- Comunicación entre contextos
 - Contextos anidados
 
 ---
@@ -62,29 +60,10 @@ background.addOperation() {
 
 ---
 
-## Código
-
-En teoría crearíamos tantos contextos como necesitáramos
-
-```swift
-//Crear un contexto asociado a la cola de operaciones principal
-//ADECUADO PARA PINTAR DATOS EN PANTALLA
-let contexto = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-//Crear un contexto asociado a una nueva cola de operaciones
-//ADECUADO POR EJEMPLO PARA OPERACIONES COSTOSAS
-let contexto2 = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-```
-
-En realidad no va a hacer falta crear explícitamente los contextos, hay métodos auxiliares **más simples de usar**
-
-
----
-
 ## Puntos a tratar
 
 - Por qué contextos múltiples
 - **Contextos para trabajos en *background***
-- Comunicación entre contextos
 - Contextos anidados
 
 ---
@@ -114,25 +93,16 @@ miDelegate.persistentContainer.performBackgroundTask() {
 
 ---
 
-## Puntos a tratar
-
-- Por qué contextos múltiples
-- Contextos para trabajos en *background*
-- **Comunicación entre contextos**
-- Contextos anidados
-
----
-
-Supongamos una *app* en la que tenemos una búsqueda/recuperación de datos muy costosa, y la hacemos en un contexto asociado a una nueva cola de operaciones (*background*). **Cuando recuperamos los datos, los obtenemos en otro contexto**, ¿cómo los mostramos/editamos/borramos desde el contexto principal?
-
-Importante: **los objetos gestionados no se deben compartir directamente entre contextos**. Cada objeto gestionado está asociado al contexto en que "nació"
+- Supongamos el caso contrario: una **importación de datos costosa** a Core Data, en la que no queremos bloquear el *thread* principal
+- Podemos insertar los datos en un contexto en *background*, y luego guardar el contexto con `save()` 
+- Si queremos mostrar los datos no podremos (salvo que los recuperemos de la BD con una *fetch request*) ya que el *thread* principal está en otro contexto, **Las  variables con los objetos gestionados no se pueden compartir entre *contextos***. Cada objeto gestionado está asociado al contexto en que "nació"
 
 ---
 
 
 ## Pasar objetos entre contextos sincronizando
 
-- Cuando un objeto persistente se guarda, emite una notificación
+- Cuando un contexto se guarda, emite una notificación
 - Esta notificación se puede escuchar desde cualquier hilo
 - El método `mergeChanges` *refresca* un contexto actualizándolo con la información contenida en la notificación
 
@@ -163,7 +133,6 @@ nc.addObserver(forName: .NSManagedObjectContextDidSave,
 
 - Por qué contextos múltiples
 - Contextos para trabajos en *background*
-- Comunicación entre contextos
 - **Contextos anidados**
 
 ---
