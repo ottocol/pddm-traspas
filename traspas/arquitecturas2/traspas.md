@@ -25,7 +25,7 @@ A cambio se elimina el *controller*, sustituido en parte por el viewmodel y en p
 
 ![](img/mvvm.png) <!-- .element class="stretch"-->
 
-* El *viewmodel* es independiente de la tecnología de la vista (no hay un `import UIKit`)
+* El *viewmodel* es la representación de los datos de la vista pero independiente de la tecnología de interfaz de usuario (en iOS: no hay un `import UIKit`)
 * **bindings entre viewmodel y vista** Cuando cambia un "lado", el otro lo hace también automáticamente
 
 ---
@@ -89,7 +89,7 @@ viewModel.obs.bind(to:self.labelOutlet.reactive.text)
 
 ---
 
-## UAdivino versión MVVM 
+## UAdivino versión MVVM
 
 - Repo Github: [https://github.com/ottocol/ejemplos-arquitectura-iOS/tree/master/MVVM/UAdivino](https://github.com/ottocol/ejemplos-arquitectura-iOS/tree/master/MVVM/UAdivino)
 

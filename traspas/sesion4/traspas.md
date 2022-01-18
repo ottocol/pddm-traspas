@@ -33,7 +33,7 @@ Ya hemos visto que Xcode tiene un editor visual, vamos a verlo con más detalle
 
 ---
 
-# DEMO: crear un modelo de datos 
+# DEMO: crear un modelo de datos
 
 ---
 

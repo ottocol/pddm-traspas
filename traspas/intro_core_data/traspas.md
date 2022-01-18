@@ -64,6 +64,7 @@ Para trabajar con Core Data necesitamos inicializar todas estas clases. Si al cr
 A partir de iOS10 el código es muy sencillo, se include en el *delegate*, y usa la clase `NSPersistentContainer`, que se ocupa "de los detalles" del *stack*:
 
 ```swift
+//Este código YA ESTÁ en la plantilla creada por Xcode
 lazy var persistentContainer: NSPersistentContainer = {
    let container = NSPersistentContainer(name: "PruebaCoreData")
     container.loadPersistentStores(completionHandler: { (storeDescription, error) in
@@ -82,10 +83,17 @@ lazy var persistentContainer: NSPersistentContainer = {
 Para hacer cualquier operación con Core Data necesitamos el contexto de persistencia.
 
 ```swift
-if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
-    let miContexto = miDelegate.persistentContainer.viewContext
-    ...
-} 
+//si no se puede obtener el delegate, salimos
+guard let miDelegate = UIApplication.shared.delegate as? AppDelegate else {
+    return
+}
+let miContexto = miDelegate.persistentContainer.viewContext
+```
+
+```swift
+//teóricamente no recomendable pero que no se pueda obtener el delegate es un error muy crítico
+let miDelegate = UIApplication.shared.delegate as! AppDelegate 
+let miContexto = miDelegate.persistentContainer.viewContext
 ```
 
 Tendréis que usar este código o similar **una y otra vez**
@@ -127,11 +135,12 @@ Tenemos que hacerlo con un inicializador especial al que le pasamos el contexto 
 ```swift
 import CoreData
 
-if let miDelegate = UIApplication.shared.delegate as? AppDelegate {
-    let miContexto = miDelegate.persistentContainer.viewContext
-    let nuevaNota = Nota(context:miContexto) 
-                                                       
+guard let miDelegate = UIApplication.shared.delegate as? AppDelegate else {
+    return
 }
+let miContexto = miDelegate.persistentContainer.viewContext
+let nuevaNota = Nota(context:miContexto)
+                                                       
 ```
 
 ---
