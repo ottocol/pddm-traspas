@@ -8,7 +8,7 @@
 
 ## Puntos a tratar
 
-- Por qué contextos múltiples
+- Qué son los contextos múltiples
 - Contextos para trabajos en *background*
 - Contextos anidados
 
@@ -16,24 +16,51 @@
 
 ## Puntos a tratar
 
-- **Por qué contextos múltiples**
+- **Qué son los contextos múltiples**
 - Contextos para trabajos en *background*
 - Contextos anidados
 
 ---
 
+<!-- 
+Hasta ahora en todos los ejemplos hemos usado un único contexto de persistencia
+
+```
+guard let miDelegate = UIApplication.shared.delegate as? AppDelegate else {
+    return
+}
+let miContexto = miDelegate.persistentContainer.viewContext
+```
+
+Sin embargo los APIs de Core data nos permiten [crear nuevos contextos](https://developer.apple.com/documentation/coredata/nspersistentcontainer/1640581-newbackgroundcontext) ¿para qué 🤔?
+
+-->
+
 ## Aplicaciones que necesitan concurrencia
 
-- Nuestro código normalmente se ejecuta en el mismo *thread* que la interfaz de usuario. **Si realizamos una operación costosa con Core Data la interfaz se bloqueará**.
-- La solución es realizar estas operaciones en otro *thread*. Como el API de *threading* es de bajo nivel, mejor usar *colas de operaciones*, una abstracción mucho más amigable (o alternativamente *grand central dispatch*)
+
+- En toda aplicación iOS hay un único hilo por defecto, que comparte nuestro código con la actualización de la interfaz
+    + Si el código se queda bloqueado, la interfaz también
+- Podemos crear más hilos para trabajos en *background*
+- APIs para multihilo (de mayor a menor dificultad, menor a mayor abstracción)
+    + Clase `Thread`
+    + Grand Central Dispatch
+    + Colas de operaciones
+    
+
+---
+
+## Colas de operaciones
+
+- 1 Cola = 1 hilo para ejecutar operaciones pasadas en forma de función o de clausura
 
 ```swift
 let background = OperationQueue();
 background.addOperation() {
     print("Comienzo mi duro trabajo...")
+    print("pero yo no puedo tocar la interfaz")
     sleep(4)
     print("...terminado!")
-    print("pero yo no puedo tocar la interfaz")
     OperationQueue.main.addOperation() {
         print("Soy main. Desde aquí se puede actualizar la interfaz")
     }
@@ -51,26 +78,20 @@ background.addOperation() {
 
 ![](img/multiples_contextos.png)
 
----
-
-- El **contexto principal** es adecuado para pintar en pantalla los datos, recordad que el hilo principal es el único que debe pintar en pantalla
-  + Este es el que veníamos usando hasta ahora todo el tiempo, es el que crea la plantilla de Xcode por defecto
-- Los **contextos secundarios** son apropiados para por ejemplo hacer operaciones costosas, pero no deben pintar en pantalla
-
 
 ---
 
 ## Puntos a tratar
 
-- Por qué contextos múltiples
+- Qué son los contextos múltiples
 - **Contextos para trabajos en *background***
 - Contextos anidados
 
 ---
 
-## Múltiples contextos para *background*
+## Caso de uso 1: Operaciones Core data en *background*
 
-El caso de uso más típico para los múltiples contextos es un contexto adicional asociado a una nueva cola desde el que hacemos las operaciones costosas. Así no bloqueamos la interfaz.
+(que no impliquen mostrar datos)
 
 Es tan típico que desde iOS10 el `NSPersistentContainer` tiene un API especial para esto: `performBackgroundTask`
 
@@ -90,12 +111,13 @@ miDelegate.persistentContainer.performBackgroundTask() {
 }
 ```
 
-
 ---
 
-- Supongamos el caso contrario: una **importación de datos costosa** a Core Data, en la que no queremos bloquear el *thread* principal
-- Podemos insertar los datos en un contexto en *background*, y luego guardar el contexto con `save()` 
-- Si queremos mostrar los datos no podremos (salvo que los recuperemos de la BD con una *fetch request*) ya que el *thread* principal está en otro contexto, **Las  variables con los objetos gestionados no se pueden compartir entre *contextos***. Cada objeto gestionado está asociado al contexto en que "nació"
+## Caso de uso 2: Operaciones en *background* que muestren datos
+
+
+- Ejemplo: importar datos de un servidor. Podemos insertar los datos en un contexto en *background*, y luego guardar el contexto con `save()` 
+- Si queremos mostrar los datos no podremos ya que el *thread* principal está en otro contexto, **Las  variables con los objetos gestionados no se pueden compartir entre *contextos***. Cada objeto gestionado está asociado al contexto en que "nació"
 
 ---
 
@@ -173,7 +195,7 @@ contextoHijo.parent = contextoPadre
 
 Alternativa al método que vimos al principio.
 
-- Tenemos un contexto hijo en la cola principal y el padre en una cola aparte
+- Tenemos un contexto hijo en el hilo principal y el padre en uno secundario
 - Trabajamos habitualmente en el contexto hijo
 - Las operaciones de guardado en el hijo no serán costosas ya que `save()` del hijo solo guardará en memoria. El `save()` del padre se hace en *background* y por tanto tampoco paraliza la UI
 
