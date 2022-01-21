@@ -1,6 +1,6 @@
 
 <!-- .slide: class="titulo" -->
-# Arquitecturas de aplicaciones iOS. **Parte IV: SwiftUI**
+# Arquitecturas de aplicaciones iOS. **Parte II: SwiftUI**
 
 ---
 
@@ -16,9 +16,9 @@
 
 - Un *framework* de Apple para la creación de interfaces de usuario en aplicaciones iOS/MacOS/watchOS
 - Presentado en la WWDC 2019
-- Probablemente sustituirá a medio/largo plazo UIKit/AppKit (👋), los *frameworks* actuales para UI
+- La idea es que sustituya a medio/largo plazo a UIKit/AppKit (👋), los *frameworks* actuales para UI
 - SwiftUI no solo es una biblioteca de componentes de usuario, también es una nuevas forma de estructurar aplicaciones y gestionar la relación entre el modelo y la vista.  
-- Los que hayáis programado en React y en menor medida en Vue/Angular encontraréis bastantes ideas familiares
+- Si has programado en React encontrarás ideas familiares (en menor medida en Vue/Angular )
 
 
 ---
@@ -28,8 +28,8 @@
 
 - Es **declarativo**
 - Basado en una **jerarquía de componentes**
-- **La interfaz se actualiza automáticamente** cuando cambian los datos (similar a MVP)
-- Herramientas de **previsualización en tiempo real** (requiere Catalina)
+- **La interfaz se actualiza automáticamente** cuando cambian los datos (similar a MVVM)
+- Herramientas de **previsualización en tiempo real** 
 
 
 ---
@@ -80,7 +80,7 @@ import SwiftUI
 //Esto es un componente propio
 struct ContentView: View {
     var body: some View {
-         //Este es un componentes "primitivo"
+         //Este es un componente "primitivo"
          Text("Hola SwiftUI")
     }
 }
@@ -90,7 +90,7 @@ struct ContentView: View {
 
 ## Componente SwiftUI (o "vista")
 
-Puede haber varios subcomponentes, pero deben formar un árbol con uno solo en la raíz (podemos agrupar componentes con `Group`)
+Puede haber varios subcomponentes, pero deben formar un árbol con uno solo en la raíz (podemos agrupar componentes con `Group`, `VStack`, `HStack`)
 
 ```swift
 import SwiftUI
@@ -98,7 +98,7 @@ import SwiftUI
 //Esto es un componente propio
 struct ContentView: View {
     var body: some View {
-        Group {
+        VStack {
             //Estos son componentes "primitivos"
             Text("Hola SwiftUI")
             Button("Saludo") {
@@ -125,26 +125,10 @@ Image("paisaje")
 
 ---
 
-## Preview del componente
-
-- La usa Xcode 11 + Catalina para previsualizar "en tiempo real"
-- Le podemos pasar datos de prueba
-- Podemos tener varias previsualizaciones (p.ej. modo claro vs modo oscuro)
-
-```swift
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
-}
-```
-
----
-
 
 ## Componentes con propiedades
 
-- Las propiedades se pueden pasar "desde fuera"
+- Las propiedades se pueden pasar "desde fuera" (en un momento veremos cómo)
 - En realidad no es más que código Swift: definir una propiedad en un *struct* y llamar al constructor por defecto del *struct* pasándole la propiedad
 
 ```swift
@@ -167,7 +151,7 @@ struct Saludo: View {
 struct App: View {
     let nom : String = "SwiftUI"
     var body: some View {
-        Group {
+        VStack {
             Text("Ejemplo de SwiftUI")
             Saludo(nombre: nom)
         }
@@ -246,7 +230,7 @@ struct Contador: View {
     @State private var valor = 0
     
     var body: some View {
-        Group {
+        VStack {
             Text("\(valor)")
             Button("Incrementar") {
                 self.valor+=1
@@ -260,6 +244,34 @@ struct Contador: View {
 
 - Modificar el estado hace que se **regenere automáticamente la vista**, ahora con el nuevo valor del estado
 - Como resultado, **SwiftUI mantiene automáticamente y en todo momento la vista sincronizada con los datos** 😃 
+
+---
+
+
+```swift
+struct Contador: View {
+    @State private var valor = 0
+    @State private var timer : Timer!
+    
+    
+    var body: some View {
+        VStack {
+            Text("\(valor)")
+            HStack {
+                Button("Start") {
+                    self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                        self.valor+=1
+                    }
+                }
+                Button("Stop") {
+                    self.timer.invalidate()
+                }
+            }
+        }
+    }
+}
+
+```
 
 ---
 
@@ -285,7 +297,7 @@ struct App: View {
 ---
 
 ```swift
-struct App: View {
+struct MiApp: View {
     let ciudades = ["Sanvi", "Londres", "Paris"]
     @State private var ciudad = 0
     @State private var nombre = ""
@@ -332,8 +344,11 @@ struct App: View {
 </div>
 
 <div class="column half">
-![](imag/reswift_data_flow.png)
+![](https://d33wubrfki0l68.cloudfront.net/01cc198232551a7e180f4e9e327b5ab22d9d14e7/b33f4/assets/images/reduxdataflowdiagram-49fa8c3968371d9ef6f2a1486bd40a26.gif)
+<div class="caption">https://redux.js.org/tutorials/fundamentals/part-2-concepts-data-flow</div>
 </div>
+
+A la izquierda, el flujo de datos en SwiftUI, a la derecha, el flujo de datos en React+Redux 
 
 ---
 
@@ -344,4 +359,6 @@ struct App: View {
 
 
 ---
+
+
 # ¿Alguna pregunta?
