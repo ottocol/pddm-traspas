@@ -1,23 +1,10 @@
 
 <!-- .slide: class="titulo" -->
-# Arquitecturas de aplicaciones iOS. **Parte I: Introducción. MVC**
-
-
-
----
-
-## Puntos a tratar
-
-- **Arquitectura de aplicaciones iOS**
-- Problemas de MVC/posibles soluciones
-- Flujo de información en la app
+# Arquitecturas de aplicaciones iOS. **Parte I: MVC y algunas alternativas**
 
 
 ---
 
-Hasta ahora nos hemos preocupado por APIs y tecnologías, pero no demasiado por cómo **estructurar el código de la aplicación**
-
----
 
 ## ¿Qué debe tener una buena arquitectura?
 
@@ -44,10 +31,9 @@ Entre otras cosas...
 
 ## Puntos a tratar
 
-- Arquitectura de aplicaciones iOS
 - **Problemas de MVC/posibles soluciones**
-- Flujo de información en la app
-
+- MVVM
+- VIPER
 
 
 ---
@@ -163,120 +149,11 @@ Otro principio similar: separación de intereses (*separation of concerns*)
 
 ---
 
-## Encapsular la persistencia
-
-Ya vimos un ejemplo en la sesión de SQLite
-
-```swift
-class DBManager {
-    var db : OpaquePointer? = nil
-    
-    init(conDB nombreDB : String) {
-        ...
-    }
-
-    func listarTareas() -> [Tarea] {
-        ...
-    }
-```
-
----
-
-## Encapsular la persistencia en una *app* con Core Data
-
-Es más complicado, ya que Core Data mezcla **modelo** (entidades) y **persistencia**. Las entidades están íntimamente ligadas al contexto de persistencia
-
-```swift
-let u = Usuario(context:miContexto)
-```
-
-No es un problema tan grande, porque...
-
-<ul>
-<li class="fragment">El API de persistencia es suficientemente sencillo como para "no molestar"</li>
-<li class="fragment">En una *app* con Core Data raramente cambiaremos de API de persistencia</li>
-</ul>
-
----
-
-## No obstante, si nos empeñáramos...
-
-![](img/dtos.png)
-
-Los **Data Transfer Objects** (DTOs) son copias de las entidades, pero sin estar vinculados a ningún contexto de persistencia ([patrón de diseño](https://martinfowler.com/eaaCatalog/dataTransferObject.html) típico de *apps enterprise*)
-
-Así, tendríamos una clase `UsuarioDTO` y una clase `Usuario` que sería la entidad de Core Data. Nuestro código trabajaría solo con la primera, la segunda la vería solo el repositorio
-
----
-
-## Separar el Datasource del ViewController
-
-- [ListaCompraDataSource](https://github.com/ottocol/mvc-refactor-swift/blob/master/ListaCompra/ListaCompraDataSource.swift)
-- [ListaViewController](https://github.com/ottocol/mvc-refactor-swift/blob/master/ListaCompra/ListaViewController.swift)
-
----
-
-## Separar la celda del DataSource
-
-Siendo puristas, una celda es parte de la *vista*, por lo que aquí estamos mezclando responsabilidades
-
-```swift
-func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let celda = tableView.dequeueReusableCell(withIdentifier: "MiCelda", for: indexPath)
-        if let prioridad = Prioridad(rawValue: indexPath.section),
-            let item = lista.getItem(pos: indexPath.row, prioridad: prioridad) {
-            celda.textLabel?.text = item.nombre
-            if item.comprado {
-                celda.accessoryType = .checkmark
-            }
-            else {
-                celda.accessoryType = .none
-            }
-        }
-        return celda
-}
-```
-
----
-
-## Encapsular la celda en su propia clase
-
-```swift
-class CeldaItem : UITableViewCell {
-    static let nombre = "MiCelda"
-    
-    var nombre : String? {
-        didSet {
-            self.textLabel?.text = self.nombre
-        }
-    }
-    
-    var comprado : Bool? {
-        didSet {
-            self.accessoryType = self.comprado! ? .checkmark : .none
-        }
-    }
-}
-```
-[CeldaItem.swift](https://github.com/ottocol/mvc-refactor-swift/blob/master/ListaCompra/vista/CeldaItem.swift) <!-- .element: class="caption" -->
-
----
-
 
 Para más detalles, podéis ver la charla: "*Refactoring tne Mega Controller*", de Andy Matuschak (**¡Muy recomendable!**)
 
 - [Video de la charla](https://vimeo.com/140037432)
 - [Código de ejemplo en Github](https://github.com/andymatuschak/refactor-the-mega-controller)
-
-
----
-
-## Puntos a tratar
-
-- Arquitectura de aplicaciones iOS
-- Problemas de MVC/posibles soluciones
-- **Flujo de información en la app**
-
 
 
 ---
@@ -380,7 +257,232 @@ Más detalles por ejemplo en [Better Storyboards  with Xcode 11](https://useyour
 - Arquitecturas como VIPER intentan solucionar (entre otros) este problema
 
 
+---
+
+## Puntos a tratar
+
+- Problemas de MVC/posibles soluciones
+- **MVVM**
+- VIPER
 
 ---
 
-# ¿Alguna pregunta?
+## MVVM (Model/View/ViewModel)
+
+![](img/mvvm.png) <!-- .element class="stretch"-->
+
+La parte "nueva" es el *viewmodel*, que se encarga de la *lógica de presentación*, es decir convertir/modificar/formatear datos (p. ej. fechas, distancias, ...) en el formato adecuado para la vista
+
+A cambio se elimina el *controller*
+
+---
+
+## UAdivino versión MVVM
+
+- Repo Github: [https://github.com/ottocol/UAdivino_MVVM_Combine](https://github.com/ottocol/UAdivino_MVVM_Combine)
+
+---
+
+## Más sobre la vista
+
+![](img/mvvm.png) <!-- .element class="stretch"-->
+
+- Lo mismo que era en MVC, pero...
+- Aunque pueda parecer un poco raro, un "view controller" de iOS también se considera vista
+
+---
+
+## Por qué un ViewController debería ser vista
+
+- Al estar el ciclo de vida del "view controller" y de los elementos de interfaz tan unidos, es mejor considerarlos a todos como vista
+- Además conseguimos que la vista sea el único componente directamente dependiente de la tecnología de presentación, en iOS `UIKit`
+
+---
+
+## Más sobre el viewmodel
+
+![](img/mvvm.png) <!-- .element class="stretch"-->
+
+* El *viewmodel* es la representación de los datos de la vista pero independiente de la tecnología de interfaz de usuario (en iOS: no hay un `import UIKit`)
+* **bindings entre viewmodel y vista** Cuando cambia un "lado", el otro lo hace también automáticamente
+
+---
+
+
+## Ensamblando Vista/ViewModel/Modelo
+
+- Recordar que el *view controller* es parte de la vista. En él definimos
+```swift
+class UAdivinoView : UIViewController { 
+   let viewModel = UAdivinoViewModel()
+   ...
+}
+```
+
+- En el view model
+```swift
+class UAdivinoViewModel {
+   let model = UAdivinoModel()
+   ...
+}
+```
+
+---
+
+## *Bindings*
+
+- Desde 2019 en iOS tenemos `Combine`, que es un *framework* de **programación funcional reactiva**
+- Según Apple: "Combine is a framework to customize handling of asynchronous events by combining event-processing operators" 🤯 
+- Hay alternativas de terceros: ReactiveCocoa, RxSwift, Bond ...
+
+---
+
+## *Data binding* en Combine
+
+- Se pueden vincular propiedades de componentes de UI en la vista (`miLabel.textColor`, `miLabel.text`,...) con *publishers* en el viewmodel. 
+- **publisher** es un concepto tomado de la *programación funcional reactiva* (también llamados *observables*, streams*, *signals*,...)
+- Un publisher emite algo similar a un evento. Uno o más subscribers (similares a *listeners*), reciben los cambios en el valor del publisher
+- La parte de programación funcional es la que nos permite transformar/manipular/combinar los observables
+
+---
+
+## Publisher
+
+- Son las propiedades del *ViewModel* cuyos cambios queremos recibir
+
+```swift
+@Published var nombre : String 
+```
+
+---
+
+## *Binding* del publisher
+
+- Lo más típico es vincular el publisher con una propiedad de un control de `UIKit`. 
+
+```swift
+//suponemos un outlet en la vista que representa un "label": labelOutlet
+viewModel.$nombre.assign(to:\.text, on:labelOutlet)
+```
+
+---
+
+## Cuestión de implementación
+
+- Para que el *binding* tenga efecto debe estar "vivo", tenemos que guardarlo en una variable que no se salga del ámbito
+
+```swift
+//En la vista
+class MiVista : UIViewController {
+   var binding : AnyCancellable!
+   let viewModel = ViewModel()
+   ...
+   override func viewDidLoad() {
+      binding = viewModel.$nombre.assign(to:\.text, on:labelOutlet)
+   }
+}
+```
+
+
+---
+
+
+## Binding del texto de la respuesta en la aplicación UAdivino
+
+
+- [Viewmodel](https://github.com/ottocol/UAdivino_MVVM_Combine/blob/main/ViewModel/UAdivinoViewModel.swift)
+- [Vista](https://github.com/ottocol/UAdivino_MVVM_Combine/blob/main/ViewModel/UAdivinoView.swift)
+
+---
+
+## Problema con el color de la respuesta
+
+- No podemos vincular directamente la propiedad `colorResp` del *viewmodel* con la propiedad `textColor` del label de la respuesta, ya que la primera es de un tipo enumerado propio y la segunda es `UIColor`, la forma estándar de representar un color en `UIKit`
+
+**¿Qué hacemos?** 🤔
+
+
+---
+
+## Transformar los observables
+
+- Programación **Funcional** Reactiva: aplicando primitivas típicas de programación funcional, podemos transformar los valores que "emite" un publisher
+
+```swift
+//En la vista
+self.viewModel.$colorResp
+    //con esto filtramos todos los valores que no sean verde o rojo
+    .filter {
+        color in
+        return (color == .verde || color == .rojo) ? true : false
+    }
+    //con esto transformamos valores de enumerado a UIColor
+    .map {
+       color in
+       return (color == .verde ? UIColor.green : UIColor.red)
+    }
+    //Ahora ya podemos hacer el binding
+    .assign(to: \.textColor, on: labelRespuesta)
+```
+
+[Código de UAdivino MVVM](https://github.com/ottocol/UAdivino_MVVM_Combine/blob/253572157fa3e105015dbce248cadae19779b972/ViewModel/UAdivinoView.swift#L29-L32)
+
+---
+
+## VIPER
+
+- "Un paso más", ya que ninguna arquitectura MVx
+    + Detalla cómo estructurar el modelo
+    + Habla sobre navegación (cambio de pantallas)
+- Adaptación de la Clean Architecture de "Uncle" Bob Martin
+
+![](https://techbeacon.com/sites/default/files/styles/article_hero_image/public/robert-uncle-bob-martin-agile-manifesto-interview.jpg)
+
+---
+
+![](https://8thlight.com/blog/assets/posts/2012-08-13-the-clean-architecture/CleanArchitecture-8b00a9d7e2543fa9ca76b81b05066629.jpg)
+
+- [https://8thlight.com/blog/uncle-bob/2012/08/13/the-clean-architecture.html](https://8thlight.com/blog/uncle-bob/2012/08/13/the-clean-architecture.html)
+
+---
+
+## VIPER
+
+- View, Interactor, Presenter, Entity, Router 
+- [https://www.objc.io/issues/13-architecture/viper/](https://www.objc.io/issues/13-architecture/viper/)
+
+![](img/viper.png)
+
+---
+
+## Principios básicos que subyacen a VIPER
+
+- Single Responsibility
+- "Program to interfaces, not implementations"
+- Dependency inversion
+
+---
+
+## Problema fundamental de VIPER
+
+- Demasiada "infraestructura": por cada caso de uso o módulo
+    + 5 componentes (V, I, P, E, R)
+    + 2 interfaces por componente
+
+- Generadores de plantillas VIPER
+    + https://github.com/pepibumur/viper-module-generator
+    + https://github.com/rambler-digital-solutions/Generamba
+    + https://github.com/ferranabello/Viperit
+
+---
+
+## VIPER "en acción"
+
+- La app de ejemplo original (ahora en Swift) [https://github.com/mutualmobile/VIPER-SWIFT](https://github.com/mutualmobile/VIPER-SWIFT)
+
+![](img/viper_todo.png)
+
+---
+
+
+## ¿Alguna pregunta? 🥵
