@@ -1,7 +1,14 @@
 
 <!-- .slide: class="titulo" -->
-# Arquitecturas de aplicaciones iOS. **Parte I: MVC y algunas alternativas**
+# Arquitecturas de aplicaciones iOS. **Parte I: MVC y alternativas**
 
+
+---
+
+
+<!-- .slide: data-background-image="img/warning.png" data-background-opacity="0.25" data-background-repeat="repeat"-->
+
+<span style="color:red; font-weight:bolder; font-size: 2em">A partir de aquí, todo es opinable</span>
 
 ---
 
@@ -20,74 +27,114 @@ Entre otras cosas...
 ) <!-- .element: class="caption" -->
 
 
----
-
-<!-- .slide: data-background-image="https://www.mycustomer.com/sites/default/files/styles/banner/public/warning_0_0_0_0_1_0_0.jpg" -->
-
-<span style="color:red; font-weight:bolder; font-size: 2em">A partir de aquí, todo es opinable</span>
-
 
 ---
 
 ## Puntos a tratar
 
 - **Problemas de MVC/posibles soluciones**
-- MVVM
-- VIPER
+- Alternativa: MVVM
+- Alternativa: VIPER
 
 
 ---
 
+## Algunos problemas de MVC
+
+1. Acoplamiento entre componentes
+2. Massive View Controllers
+3. Navegación entre pantallas
+
+
+---
+
+## Acoplamiento entre componentes
 ## MVC en la teoría
+
+- Los componentes están *desacoplados*
 
 ![](img/expectativa_mvc.png)
 
 ---
 
-## Problema: Acoplamiento entre componentes
+## Problema 1: Acoplamiento entre componentes
 
 Por el propio diseño de iOS hay un acoplamiento vista/controlador
 
-![](img/realidad_mvc.png)
+<!-- .element class="stretch" -->![](img/mvc_realidad.png)
 
-Este problema lo resuelven otras arquitecturas como MVVM
+Este problema lo resuelven otras arquitecturas como MVVM, pero en iOS MVC digamos que "se tolera"
 
 ---
 
-## Evitar acoplamiento entre modelo y controlador
+## Evitar acoplamiento modelo/controlador
 
-El controlador puede guardar referencias al modelo
+En una hipotética *app* de chat, queremos que el modelo le comunique al controlador que se ha recibido un mensaje, pero sin acoplamiento
+
+![](img/mvc_chat.png)
+
+---
+
+## Notificaciones
+
+
+Permiten comunicar componentes sin acoplamiento
 
 ```swift
-class MiViewController : ViewController {
-    var miModelo : Modelo
-    ...
+//El view controller
+class MiViewController : UIViewController {
+    let miChatModel : ChatModel!
+
+    func viewDidLoad() {
+        miChatModel = ChatModel()
+        NotificationCenter.default.addObserver(self, selector:#selector(self.mensajeRecibido), name:Notification.Name("mensaje_recibido"), object: nil)
+    }
+
+    @objc func mensajeRecibido(notif : Notification) {
+        ...
+    }
 }
 ```
 
-pero no al revés, ya que **el modelo no sería reutilizable**
+---
+
+## Notificaciones
+
+
+Permiten comunicar componentes sin acoplamiento
 
 ```swift
-class Modelo  {
-    //NOOOOOOOOOOO!!!!!
-    var mc : MiViewController
-    ...
+//El modelo
+//No tiene ninguna referencia al controller ni a la vista
+class ChatModel {
+    //a esta función se llamaría cuando se recibiera un mensaje del servidor
+    //el cómo en concreto depende de la tecnología usada (Websockets, Server Sent Events, ...)
+    func mensajeRecibidoDelServidor(texto : String) {
+        NotificationCenter.default.post(name: Notification.Name("mensaje_recibido"), object: nil, userInfo: ["mensaje":texto])
+    }
 }
 ```
 
 ---
 
-Recordad que en iOS hay dos mecanismos básicos que podemos usar para independizar el modelo del controlador:
+## Problema 2: Massive View Controllers
 
-- Notificaciones
-- KVO
+- Los *view controllers* técnicamente son el pegamento que une la vista (componentes de UI) con el modelo 
 
-El controlador siempre debe **escuchar al modelo**, no el modelo enviarle específicamente los datos al controlador
+![](img/expectativa_mvc.png)
+
+- Deberían contener solo el código estrictamente necesario para
+    + Que cuando se pulse un botón "pase algo" en el modelo
+    + Que cuando "pasa algo" en el modelo se actualice la interfaz
+    
+**PERO...**
 
 ---
 
-## Problema: Massive View Controllers
+## Problema 2: Massive View Controllers
 
+- Cuando un desarrollador iOS no sabe dónde poner una cosa, la pone en el ViewController
+- Lo hemos hecho muchísimas veces en los ejemplos de clase 🙄
 
 <div class="column half">
     ![](img/tweet_mvc.png)
@@ -96,56 +143,27 @@ El controlador siempre debe **escuchar al modelo**, no el modelo enviarle espec�
 ![](img/family_mvc.jpg)
 </div>
 
+---
+
+## Responsabilidades "típicas" de un Controller real
+
+- Pegamento entre vista y modelo
+- DataSource de tablas y otros componentes (UIPicker)
+- Delegate de tablas y otros
+- Cliente de APIs externos
+- Recupera/Guarda datos en Core Data
+- ...
+
 
 ---
+
+## Solución: refactorizar el código en clases adicionales
 
 Ejemplo de aplicación en la que "todo lo hace el view controller"
 
-- [Fuente de la *app* en Github](https://github.com/ottocol/mvc-refactor-swift/) (versión actual ya refactorizado)
 - [Código del *view controller*](https://github.com/ottocol/mvc-refactor-swift/blob/v1.0/ListaCompra/ListaViewController.swift)
+- [Fuente de la *app* en Github](https://github.com/ottocol/mvc-refactor-swift/) (versión actual ya refactorizado)
 
----
-
-## ¿Qué funciones está haciendo aquí el controller?
-
-
----
-
-## Vamos a refactorizar el *view controller* para que no realice tantas tareas distintas
-
-
----
-
-## Fuentes
-
-- Principios básicos de programación
-- Patrones de diseño
-- "Sentido común"
-
----
-
-
-### **Principio de Responsabilidad Única**: una clase debería tener solo una razón para cambiar
-
-Nuestro *view controller* debe cambiar si cambia:
-
-- La agrupación de las tareas en categorías
-- El almacenamiento (p.ej. guardarlo como JSON, o como preferencias)
-- La representación de los datos en la tabla
-- ...
-
-Otro principio similar: separación de intereses (*separation of concerns*)
-
----
-
-## Cambios a realizar
-
-* Encapsular la lógica en un **modelo** 
-*  Encapsular la persistencia en un **repositorio** (también llamado DAO, *data mapper*, ...)
-    * Además de separar responsabilidades, facilita el cambio en el mecanismo de persistencia (¿preferencias?, ¿SQLite?)
-* Separar la responsabilidad de actuar como **datasource**
-* Separar la responsabilidad de actuar como **delegate**                
-* Extraer el código que **configura las celdas** (encapsular la vista)
 
 ---
 
@@ -158,7 +176,7 @@ Para más detalles, podéis ver la charla: "*Refactoring tne Mega Controller*", 
 
 ---
 
-## Problema: MVC no es una arquitectura para toda la *app*
+## Problema 3: MVC no es una arquitectura para toda la *app*
 
 MVC cubre "una pantalla", pero ¿qué pasa al cambiar de una pantalla a otra?
 - Ya hemos visto que necesitamos pasar datos de un `ViewController` a otro
@@ -254,7 +272,7 @@ Más detalles por ejemplo en [Better Storyboards  with Xcode 11](https://useyour
 - *Storyboards* 
     - Problemas de escalabilidad. Mejor dividir el storyboard en fragmentos con *storyboard references* ([tutorial ejemplo](https://cocoacasts.com/organizing-storyboards-with-storyboard-references))
     - Al ser XML generado automáticamente plantean [problemas con el control de versiones](https://martiancraft.com/blog/2018/02/handling-storyboard-merge-conflicts/)
-- Arquitecturas como VIPER intentan solucionar (entre otros) este problema
+- Arquitecturas como VIPER (entre otras) intentan solucionar este problema
 
 
 ---
@@ -262,8 +280,8 @@ Más detalles por ejemplo en [Better Storyboards  with Xcode 11](https://useyour
 ## Puntos a tratar
 
 - Problemas de MVC/posibles soluciones
-- **MVVM**
-- VIPER
+- **Alternativa: MVVM**
+- Alternativa: VIPER
 
 ---
 
@@ -361,7 +379,8 @@ class UAdivinoViewModel {
 - Lo más típico es vincular el publisher con una propiedad de un control de `UIKit`. 
 
 ```swift
-//suponemos un outlet en la vista que representa un "label": labelOutlet
+//Estamos en la vista, necesitamos una referencia al view model
+//suponemos además un outlet en la vista que representa un "label": labelOutlet
 viewModel.$nombre.assign(to:\.text, on:labelOutlet)
 ```
 
@@ -426,6 +445,16 @@ self.viewModel.$colorResp
 ```
 
 [Código de UAdivino MVVM](https://github.com/ottocol/UAdivino_MVVM_Combine/blob/253572157fa3e105015dbce248cadae19779b972/ViewModel/UAdivinoView.swift#L29-L32)
+
+---
+
+## Puntos a tratar
+
+- Problemas de MVC/posibles soluciones
+- Alternativa: MVVM
+- **Alternativa: VIPER**
+
+
 
 ---
 
