@@ -43,6 +43,15 @@ Estrictamente hablando, **no es un ORM** ya que no soporta más que SQLite y ade
 
 ---
 
+## Swift Data
+
+- Core Data nació en la "época" de Objective-C y por eso no "encaja" al 100% con la forma de hacer las cosas en Swift
+- En la WWDC 2023 Apple [presentó "Swift Data"](https://developer.apple.com/videos/play/wwdc2023/10187/), un ORM mejor integrado con Swift/SwiftUI y compatible con Core Data
+
+
+
+---
+
 ## Puntos a tratar
 
 - Qué es Core Data
